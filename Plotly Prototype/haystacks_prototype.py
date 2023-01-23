@@ -85,15 +85,21 @@ app.layout = html.Div([
         
         )], style={'backgroundColor': 'rgb(17, 17, 17)', 'padding': '10px 5px'}
     ),
-
     html.Div([
-        # Scatter plot of correlation between selected feature and sale price
-        dcc.Graph(
-            id='scatter-plot',
-            hoverData={'points': [{'customdata': 0}]}
-        )
-
-    ], style={'width': '100%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+        html.Div([
+            # Scatter plot of correlation between selected feature and sale price
+            dcc.Graph(
+                id='scatter-plot',
+                hoverData={'points': [{'customdata': 0}]}
+            )
+        ], style={'width': '74%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+        html.Div([
+            # Place SHAP values here
+            html.H1(
+                children="SHAP Values"
+                ),
+        ], style={'width': '24%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+    ]),
     # Point plot of average values of selected features
     html.Div([
         dcc.Graph(id='point-plot'),
