@@ -13,13 +13,15 @@ external_stylesheets = [dbc.themes.DARKLY]
 app = dash.Dash(__name__, title='Prototype Real Estate Dashboard (Haystacks)', external_stylesheets=[external_stylesheets])
 
 # Read in external data into dash application
-df = pd.read_csv('Data/clean_Ames_HousePrice.csv')
+df = pd.read_csv('Data/cleaned.csv')
 
 # Define features to be utilized for generating scatter plots
-features = ['GrLivArea', 'LotFrontage', 'LotArea', 'GarageArea']
+features = ['HS_rating', 'MS_rating', 'ES_rating', 'overall_crime_grade',
+'property_crime_grade', 'rent', 'beds', 'baths_full',
+'baths_half', 'square_footage', 'lot_size', 'year_built']
 
 # Define sales prices based on models to be utilized for generating scatter plots
-models = ['SalePrice']
+models = ['price']
 
 # Calculate averages of selected features
 df_average = df[features].mean()
@@ -51,7 +53,7 @@ app.layout = html.Div([
             dcc.Dropdown(
                 id='crossfilter-model',
                 options=[
-                    {'label': 'Final Sale Price', 'value': 'SalePrice'},
+                    {'label': 'Final Sale Price', 'value': 'price'},
                 ],
                 value=models[0],
                 clearable=False
@@ -90,7 +92,10 @@ app.layout = html.Div([
             # Scatter plot of correlation between selected feature and sale price
             dcc.Graph(
                 id='scatter-plot',
-                hoverData={'points': [{'customdata': 0}]}
+                # Update graph on click
+                clickData={'points': [{'customdata': 0}]}
+                # Update graph on hover
+                # hoverData={'points': [{'customdata': 0}]}
             )
         ], style={'width': '74%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
         html.Div([
@@ -123,7 +128,7 @@ def update_graph(feature, model, gradient):
     # Define points and respective colors of scatter plot
     cols = df[feature].values #df[feature].values
     hover_names = []
-    for ix, val in zip(df["PID"].values, df[feature].values):
+    for ix, val in zip(df.index.values, df[feature].values):
         hover_names.append(f'Customer {ix:03d}<br>{feature} value of {val}')
     # Generate scatter plot
     fig = px.scatter(
@@ -182,15 +187,24 @@ def create_point_plot(df, title):
 @app.callback(
     dash.dependencies.Output('point-plot', 'figure'),
     [
-        dash.dependencies.Input('scatter-plot', 'hoverData')
+        # Update graph on click
+        dash.dependencies.Input('scatter-plot', 'clickData')
+        # Update graph on hover
+        # dash.dependencies.Input('scatter-plot', 'hoverData')
     ]
 )
 
-# Function to trigger last function in response to user hover over point in scatter plot
-def update_point_plot(hoverData):
-    index = hoverData['points'][0]['customdata']
+# Function to trigger last function in response to user click point in scatter plot
+def update_point_plot(clickData):
+    index = clickData['points'][0]['customdata']
     title = f'Customer {index}'
     return create_point_plot(df[features].iloc[index], title)
+
+# Function to trigger last function in response to user hover over point in scatter plot
+# def update_point_plot(hoverData):
+#     index = hoverData['points'][0]['customdata']
+#     title = f'Customer {index}'
+#     return create_point_plot(df[features].iloc[index], title)
 
 # The final two critical lines of code to RUN the application
 if __name__ == '__main__':
