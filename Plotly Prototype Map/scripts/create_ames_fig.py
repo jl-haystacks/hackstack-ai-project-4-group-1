@@ -151,7 +151,7 @@ def create_world_fig(df, mapbox_access_token):
             'bearing':0,
             'center':{"lat": 42.027269, "lon": -93.611500},
             'pitch':0,
-            'zoom':11.4,
+            'zoom':1.7,
             'layers':[{
                 'source':{
                     "type":"GeometryCollection",
