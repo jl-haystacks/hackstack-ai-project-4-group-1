@@ -25,7 +25,7 @@ import scripts.utils_haystacks as f
 ############################################################################################
 
 # Load pre computed data
-ames = f.load_pickle('ames_info.p')
+ga = f.load_pickle('ga_info.p')
 
 # Deployment inforamtion
 PORT = 8050
@@ -41,7 +41,7 @@ app = dash.Dash(
 
 # Associating server
 server = app.server
-app.title = 'Ames, IA - House and Neighborhood Locations'
+app.title = 'Georgia - Data on House Sales'
 app.config.suppress_callback_exceptions = True
 
 ############################################################################################
@@ -93,7 +93,7 @@ app.layout = html.Div(
         html.Div(
             className="header",
             children=[
-                html.H1("Ames, IA - Location of Houses in Neighborhoods", className="header__text"),
+                html.H1("Georgia - Data on House Sales", className="header__text"),
                 # html.Span('(Last update: {})'.format(world['last_date'])),
                 # html.Hr(),
             ],
@@ -116,9 +116,9 @@ app.layout = html.Div(
 
             # Line 2 : MAP - AMES
             html.Div(
-                id='ames_line',
+                id='ga_line',
                 children = [
-                    dcc.Graph(id='ames_map', figure=ames['figure'], config={'scrollZoom': False}),         
+                    dcc.Graph(id='ga_map', figure=ga['figure'], config={'scrollZoom': False}),         
                 ],
             ),
             # html.Br(),

@@ -3,7 +3,6 @@ import os
 import pickle
 import configparser
 
-
 # Load config
 config = configparser.ConfigParser()
 

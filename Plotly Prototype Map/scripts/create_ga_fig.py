@@ -13,7 +13,7 @@ pd.set_option('chained_assignment', None)
 ################################################################################################
 
 # def process_pandemic_data(df, startdate = '2020-03-01'):
-def process_pandemic_data(df):
+def process_ga_data(df):
 
     # Columns renaming
     df.columns = [col.lower() for col in df.columns]
@@ -56,7 +56,15 @@ def process_pandemic_data(df):
     return df
 
 
-def create_world_fig(df, mapbox_access_token):
+def create_ga_fig(df, mapbox_access_token):
+    '''
+    For a Plotly Graph Objects (go) Figure to be properly displayed,
+    the following parameters need to be specified:
+    1. data
+    2. layout
+    3. frames
+    More here: https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html
+    '''
    
     # days = df.index.levels[0].tolist()
     # day = min(days)
@@ -134,10 +142,10 @@ def create_world_fig(df, mapbox_access_token):
     #     }]
     # }]
 
-    # Loading Map Outline Coordinates
-    with open('../assets/map_outline.txt') as f:
-        map_outline = f.readlines()
-    f.close()
+    # Loading Map Outline Coordinates (County or Zipcode)
+    # with open('../assets/map_outline.txt') as f:
+    #     map_outline = f.readlines()
+    # f.close()
 
     # Global Layout
     # Reference here: https://plotly.com/python/reference/layout/mapbox/
@@ -149,35 +157,35 @@ def create_world_fig(df, mapbox_access_token):
         mapbox={
             'accesstoken':mapbox_access_token,
             'bearing':0,
-            'center':{"lat": 42.027269, "lon": -93.611500},
+            # Geographic center of Georgia:
+            # https://georgiahistory.com/ghmi_marker_updated/geographic-center-of-georgia/
+            'center':{"lat": 32.6461, "lon": -83.4317},
             'pitch':0,
-            'zoom':1.7,
-            'layers':[{
-                'source':{
-                    "type":"GeometryCollection",
-                    "geometries":[{
-                        "type":"MultiPolygon",
-                        "coordinates":[[[
-                            map_outline
-                        ]]] 
-                    }]
-                },
-                'type':"line",
-                'below':"traces",
-                'color':'#7392DA',
-                'opacity': 0.5
-            }]
-            # 'center':{"lat": 37.86, "lon": 2.15},
-            # 'pitch':0,
-            # 'zoom':11.4,
-            # 'style':'light',
+            'zoom':5.5,
+            'style':'light',
+            # This is where to apply geoJSON layers for county or zipcode
+            #  'layers':[{
+            #      'source':{
+            #          "type":"GeometryCollection",
+            #          "geometries":[{
+            #              "type":"MultiPolygon",
+            #              "coordinates":[[[
+            #                  map_outline
+            #              ]]] 
+            #          }]
+            #     },
+            #      'type':"line",
+            #      'below':"traces",
+            #      'color':'7392DA',
+            #      'opacity': 0.5
+            #  }]
         },
         # updatemenus=play_button,
         # sliders=sliders,
-        margin={"r":0,"t":0,"l":0,"b":0}
+        margin={"r":0,"t":0,"l":0,"b":0},
     )
 
-    return go.Figure(layout=layout)
+    return go.Figure(data=None, layout=layout, frames=None)
     # return go.Figure(data=data, layout=layout, frames=frames)
 
 ################################################################################################
@@ -202,23 +210,23 @@ if __name__ =="__main__":
     
     # Creating dataFrames
     df_raw = pd.read_csv(raw_dataset_path)
-    df_ames = process_pandemic_data(df_raw)
+    df_ga = process_ga_data(df_raw)
     # df_total_kpi = df_world.groupby('date').sum().sort_index().iloc[-1]
     
     # Preparing figure
-    fig_ames = create_world_fig(df_ames, mapbox_access_token=mapbox_access_token)
+    fig_ga = create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
 
     # Storing all necessay information for app
     save = {
-        'figure':fig_ames,
+        'figure':fig_ga,
         # 'last_date':df_world.index[-1][0],
         # 'total_confirmed': f.spacify_number(int(df_total_kpi['confirmed'])),
         # 'total_deaths': f.spacify_number(int(df_total_kpi['deaths'])),
         # 'total_recovered': f.spacify_number(int(df_total_kpi['recovered']))
     }
-    f.save_pickle(save, 'ames_info.p')
+    f.save_pickle(save, 'ga_info.p')
 
     # Display information
-    logger.info('Ames map updated.')
+    logger.info('Georgia map updated.')
     logger.info('Data sorted for dash application.')
     # logger.info('Last date in new dataset is {}'.format(df_world.index[-1][0]))
