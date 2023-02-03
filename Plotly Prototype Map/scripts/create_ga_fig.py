@@ -5,6 +5,7 @@ import pandas as pd
 from logzero import logger
 from plotly import graph_objs as go
 import plotly.express as px
+import geopandas as gpd
 import utils_haystacks as f
 pd.set_option('chained_assignment', None)
 
@@ -14,9 +15,21 @@ pd.set_option('chained_assignment', None)
 
 # def process_pandemic_data(df, startdate = '2020-03-01'):
 def process_ga_data(df):
+    # Read raw data file to create new DataFrame
+    # haystacks_ga_data = pd.read_csv('data/haystacks_ga_clean_new_format.csv', dtype={"county": str, "zipcode": str})
+
+    # Aggregate counties by number of houses
+    ga_county_count = pd.DataFrame(df.county.value_counts())
+    ga_county_count = ga_county_count.reset_index().rename(columns = {'index':'county', 'county':'num_houses'})
+
+    return ga_county_count
+
+    '''
+    The code below is needed for a time-based animation.
+    '''
 
     # Columns renaming
-    df.columns = [col.lower() for col in df.columns]
+    # df.columns = [col.lower() for col in df.columns]
 
     # Keep only from a starting date
     # df = df[df['date'] > startdate]
@@ -25,8 +38,8 @@ def process_ga_data(df):
     # df['zone'] = df['zone'].apply(str) + ' ' + df['sub zone'].apply(lambda x: str(x).replace('nan', ''))
     
     # Extracting latitute and longitude
-    df['lat'] = df['latitude']
-    df['lon'] = df['longitude']
+    # df['lat'] = df['latitude']
+    # df['lon'] = df['longitude']
     # df['lat'] = df['location'].apply(lambda x: x.split(',')[0])
     # df['lon'] = df['location'].apply(lambda x: x.split(',')[1])
 
@@ -53,11 +66,38 @@ def process_ga_data(df):
     # df['deaths_display'] = df['deaths'].apply(int).apply(f.spacify_number)
 
     
-    return df
+    # return df
 
 
 def create_ga_fig(df, mapbox_access_token):
+    # To create a static choropleth map
+
+    # Set the filepath and load in a shapefile
+    # Shape file found here:
+    # https://maps.princeton.edu/catalog/tufts-gacounties10
+    ga_counties = "../data/geojson/tufts-gacounties10-geojson.json"
+    map_ga_counties = gpd.read_file(ga_counties)
+
+    # plotly and geopandas necessary for producing these choropleths
+    # For plotly express to print maps, jsons must be used
+    # More here: https://plotly.com/python/mapbox-county-choropleth/
+    # https://plotly.github.io/plotly.py-docs/generated/plotly.express.choropleth_mapbox.html
+    # https://stackoverflow.com/questions/67362742/geojson-issues-with-plotly-choropleth-mapbox
+    # https://community.plotly.com/t/choroplethmapbox-does-not-show/41229/6
+    ga_counties_fig = px.choropleth_mapbox(df, geojson=map_ga_counties, locations='county', color='num_houses',
+                                        color_continuous_scale="Viridis", #range_color=(0, 12), 
+                                        mapbox_style="carto-positron", zoom=5.5, 
+                                        # Geographic center of Georgia:
+                                        # https://georgiahistory.com/ghmi_marker_updated/geographic-center-of-georgia/
+                                        center = {"lat": 32.6461, "lon": -83.4317},
+                                        opacity=0.5, labels={'num_houses':'Number of Houses'},
+                                        featureidkey='properties.name10')
+    
+    return ga_counties_fig
+
+
     '''
+    The code below is needed for a time-based animation.
     For a Plotly Graph Objects (go) Figure to be properly displayed,
     the following parameters need to be specified:
     1. data
@@ -149,20 +189,20 @@ def create_ga_fig(df, mapbox_access_token):
 
     # Global Layout
     # Reference here: https://plotly.com/python/reference/layout/mapbox/
-    layout = go.Layout(
-        height=600,
-        autosize=True,
-        hovermode='closest',
-        paper_bgcolor='rgba(0,0,0,0)',
-        mapbox={
-            'accesstoken':mapbox_access_token,
-            'bearing':0,
+    # layout = go.Layout(
+    #     height=600,
+    #     autosize=True,
+    #     hovermode='closest',
+    #     paper_bgcolor='rgba(0,0,0,0)',
+    #     mapbox={
+    #         'accesstoken':mapbox_access_token,
+    #         'bearing':0,
             # Geographic center of Georgia:
             # https://georgiahistory.com/ghmi_marker_updated/geographic-center-of-georgia/
-            'center':{"lat": 32.6461, "lon": -83.4317},
-            'pitch':0,
-            'zoom':5.5,
-            'style':'light',
+            # 'center':{"lat": 32.6461, "lon": -83.4317},
+            # 'pitch':0,
+            # 'zoom':5.5,
+            # 'style':'light',
             # This is where to apply geoJSON layers for county or zipcode
             #  'layers':[{
             #      'source':{
@@ -179,13 +219,12 @@ def create_ga_fig(df, mapbox_access_token):
             #      'color':'7392DA',
             #      'opacity': 0.5
             #  }]
-        },
+        # },
         # updatemenus=play_button,
         # sliders=sliders,
-        margin={"r":0,"t":0,"l":0,"b":0},
-    )
+    #     margin={"r":0,"t":0,"l":0,"b":0},
+    # )
 
-    return go.Figure(data=None, layout=layout, frames=None)
     # return go.Figure(data=data, layout=layout, frames=frames)
 
 ################################################################################################
