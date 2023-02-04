@@ -10,13 +10,15 @@ import plotly.graph_objects as go
 import numpy as np
 import shap
 import pickle
+import warnings
+warnings.filterwarnings('ignore')
 
 # Define external stylesheets and apply them
 external_stylesheets = [dbc.themes.DARKLY]
 app = dash.Dash(__name__, title='Prototype Real Estate Dashboard (Haystacks)', external_stylesheets=[external_stylesheets])
 
 # Read in external data into dash application
-df = pd.read_csv('Data/haystacks_ga_clean_new_format.csv')
+df = pd.read_csv('Data/Raw/haystacks_ga_clean_new_format.csv')
 df1 = df.copy()
 ################################# Need to integrate below mask into pre-processing and take it out of here
 mask = {'F': 0,
@@ -34,10 +36,6 @@ mask = {'F': 0,
 df['overall_crime_grade'] = df['overall_crime_grade'].apply(lambda row: mask[row])
 df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[row])
 #################################
-
-
-
-
 
 # Define features to be utilized for generating scatter plots
 # features = ['HS_rating', 'MS_rating', 'ES_rating', 'overall_crime_grade',
@@ -60,10 +58,6 @@ df_average = df[features].mean()
 # Calculate maximum value of entire dataframe to set limit of point plot
 max_val = df.max()
 
-
-import warnings
-warnings.filterwarnings('ignore')
-
 # Load models indexed by zipcode
 # Includes a model, a shap_value object, and the corresponding explainer
 
@@ -71,7 +65,9 @@ warnings.filterwarnings('ignore')
 zip_dfs = pd.Series([], dtype='O')
 for zipcode in set(df.zipcode.values):
     zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
-MLR_MS_df = pd.read_pickle('MLR_modNshap.P')
+
+# Read pickle file that can be obtained by running the first half or so of MLR.ipynb
+MLR_MS_df = pd.read_pickle('Data/Pickle/MLR_modNshap.P')
 
 ## Predictions... should probably pre-load for each model.
 df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
@@ -191,7 +187,6 @@ app.layout = html.Div([
 )
 
 ################################################################################################
-
 
 @app.callback(
     dash.dependencies.Output('reso_list', 'children'),
