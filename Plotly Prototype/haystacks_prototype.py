@@ -12,6 +12,9 @@ import shap
 import pickle
 import warnings
 warnings.filterwarnings('ignore')
+import io
+import base64
+import matplotlib.pyplot as plt
 
 # Define external stylesheets and apply them
 external_stylesheets = [dbc.themes.DARKLY]
@@ -172,12 +175,13 @@ app.layout = html.Div([
             )
         ], style={'width': '74%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
         html.Div([
-            # Place SHAP values here
-            html.H1(
-                children="SHAP Values"
-                ),
-        ], style={'width': '24%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
-    ]),
+                html.Img(id='shap-bee'),
+                # Place SHAP values here
+                html.H1(
+                    children="SHAP Values"
+                    ),
+            ], style={'width': '24%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+        ]),
     # Point plot of average values of selected features
     html.Div([
         dcc.Graph(id='point-plot'),
@@ -231,6 +235,32 @@ def update_scale(resolution_dropdown):
     ]
 )
 
+## Shap values
+@app.callback(
+    dash.dependencies.Output('shap-bee', 'src'),
+    [
+        dash.dependencies.Input('filter-dropdown','value'),
+        #dash.dependencies.State('crossfilter-resolution', 'value') ## Useful if we add county as well
+        #dash.dependencies.Input('crossfilter-model', 'State')    ## need to figure out a good way to do this. Will probably use a Series of those model dataframes
+        dash.dependencies.State('shap-bee', 'src')
+    ]
+)
+def update_shap(focus, current):
+    if focus == 'Georgia':
+        return current
+    shap.summary_plot( 
+        MLR_MS_df.loc[focus,'shap_values'], 
+        show=False)
+    fig = plt.gcf()
+    buf = io.BytesIO() # in-memory files
+    plt.savefig(buf, format = "png")
+    plt.close()
+    data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
+    buf.close()
+    X = "data:image/png;base64,{}".format(data)
+    return X
+
+
 # Function to update graph in response to feature, model, and color gradient schema being updated
 def update_graph(feature, model, gradient, resolution, focus):
     # Filter dataframe 
@@ -255,53 +285,6 @@ def update_graph(feature, model, gradient, resolution, focus):
     # Update feature information when user hovers over data point
     # customdata_set = list(df[features].to_numpy())
     fig.update_traces(customdata=df1.index)
-    
-    # Layout of scatter plot
-    fig.update_layout(
-        coloraxis_colorbar={'title': f'{feature}'},
-        coloraxis_showscale=True,
-        legend_title_text='Spend',
-        height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
-        hovermode='closest',
-        template='plotly_dark'
-    )
-    # Axis settings for scatter plot
-    fig.update_xaxes(showticklabels=True)
-    fig.update_yaxes(showticklabels=True)
-
-    return fig
-# First callback to coordinate scatterplot with feature, model, and color gradient schema
-@app.callback(
-    dash.dependencies.Output('scatter-plot', 'figure'),
-    [
-        dash.dependencies.Input('crossfilter-feature', 'value'),
-        dash.dependencies.Input('crossfilter-model', 'value'),
-        dash.dependencies.Input('gradient-scheme', 'value')
-    ]
-)
-
-# Function to update graph in response to feature, model, and color gradient schema being updated
-def update_graph(feature, model, gradient):
-    # Define points and respective colors of scatter plot
-    cols = df[feature].values #df[feature].values
-    hover_names = []
-    for ix, val in zip(df.index.values, df[feature].values):
-        hover_names.append(f'Customer {ix:03d}<br>{feature} value of {val}')
-    # Generate scatter plot
-    fig = px.scatter(
-        df,
-        x=df[feature],
-        y=df[model],
-        color=cols,
-        opacity=0.8,
-        hover_name=hover_names,
-        hover_data=features,
-        template='plotly_dark',
-        color_continuous_scale=gradient,
-    )
-    # Update feature information when user hovers over data point
-    # customdata_set = list(df[features].to_numpy())
-    fig.update_traces(customdata=df.index)
     
     # Layout of scatter plot
     fig.update_layout(
