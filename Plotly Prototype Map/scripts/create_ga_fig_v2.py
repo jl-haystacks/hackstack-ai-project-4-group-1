@@ -70,8 +70,9 @@ def create_ga_fig(df, mapbox_access_token):
 
     # Load in county-level geoJSON
     # https://maps.princeton.edu/catalog/tufts-gacounties10
-    ga_counties = "../data/geojson/tufts-gacounties10-geojson.json"
-    map_ga_counties = gpd.read_file(ga_counties)
+    # ga_counties = "../data/geojson/tufts-gacounties10-geojson.json"
+    # map_ga_counties = gpd.read_file(ga_counties)
+    map_ga_counties = "../data/geojson/tufts-gacounties10-geojson.json"
 
     # Load in zipcode-level geoJSON
     # https://maps.princeton.edu/catalog/harvard-tg00gazcta
@@ -81,6 +82,8 @@ def create_ga_fig(df, mapbox_access_token):
     # Create choropleth maps for trace1
     trace1 = []
     # For county-level granularity
+    logger.info(type(map_ga_counties))
+    logger.info(map_ga_counties)
     for q in Types[:2]:
         trace1.append(go.Choroplethmapbox(
             geojson = map_ga_counties,
@@ -97,23 +100,23 @@ def create_ga_fig(df, mapbox_access_token):
             hovertemplate = "<b>%{text}</b><br><br>" +
                             "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
                             "<extra></extra>")) # "<extra></extra>" means we info in the secondary box is not displayed
-    # For zipcode-level granularity
-    for q in Types[2:]:
-        trace1.append(go.Choroplethmapbox(
-            geojson = map_ga_zipcodes,
-            locations = q.index.tolist(),
-            # Fix this to indicate what value is being aggregated using the correct syntax
-            # x = q.columns[0],
-            z = q[q.columns[0]].tolist(), 
-            colorscale = pl_deep,
-            text = zipcodes, 
-            colorbar = dict(thickness=20, ticklen=3),
-            marker_line_width=0, marker_opacity=0.7,
-            visible=False,
-            subplot='mapbox1',
-            hovertemplate = "<b>%{text}</b><br><br>" +
-                            "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
-                            "<extra></extra>")) # "<extra></extra>" means we info in the secondary box is not displayed
+    # # For zipcode-level granularity
+    # for q in Types[2:]:
+    #     trace1.append(go.Choroplethmapbox(
+    #         geojson = map_ga_zipcodes,
+    #         locations = q.index.tolist(),
+    #         # Fix this to indicate what value is being aggregated using the correct syntax
+    #         # x = q.columns[0],
+    #         z = q[q.columns[0]].tolist(), 
+    #         colorscale = pl_deep,
+    #         text = zipcodes, 
+    #         colorbar = dict(thickness=20, ticklen=3),
+    #         marker_line_width=0, marker_opacity=0.7,
+    #         visible=False,
+    #         subplot='mapbox1',
+    #         hovertemplate = "<b>%{text}</b><br><br>" +
+    #                         "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
+    #                         "<extra></extra>")) # "<extra></extra>" means we info in the secondary box is not displayed
 
     # Create bar plot for trace2
     trace2 = []
@@ -203,6 +206,7 @@ def create_ga_fig(df, mapbox_access_token):
             )]))
 
     # Output final result to create pickle file
+    # return go.Figure(data = trace2, layout = layout)
     return go.Figure(data = trace2 + trace1, layout = layout)
 
 ################################################################################################

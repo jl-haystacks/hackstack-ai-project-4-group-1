@@ -115,6 +115,8 @@ app.layout = html.Div(
             # links,
 
             # Line 2 : MAP - AMES
+
+            
             html.Div(
                 id='ga_line',
                 children = [
