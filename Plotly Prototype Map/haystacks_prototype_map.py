@@ -48,44 +48,6 @@ app.config.suppress_callback_exceptions = True
 ######################################### LAYOUT ###########################################
 ############################################################################################
 
-# links = html.Div(
-#     id='platforms_links',
-#     children=[                   
-#         html.A(
-#             href='https://towardsdatascience.com/how-to-create-animated-scatter-maps-with-plotly-and-dash-f10bb82d357a',
-#             children=[
-#                 html.Img(src=app.get_asset_url('medium.png'), width=20, height=20),
-#                 html.Span("Map")
-#             ]
-#         ),
-#         html.A(
-#             href='https://medium.com/@thibaud.lamothe2/deploying-dash-or-flask-web-application-on-heroku-easy-ci-cd-4111da3170b8',
-#             children=[
-#                 html.Img(src=app.get_asset_url('medium.png'), width=20, height=20),
-#                 html.Span("Deploy")
-#             ]
-#         ),
-#         html.A(
-#             href='https://github.com/ThibaudLamothe/dash-mapbox',
-#             children=[
-#                 html.Img(src=app.get_asset_url('github.png'), width=20, height=20),
-#                 # "Application code"
-#                 html.Span("Code")
-#             ]
-#         ),
-#         html.A(
-#             href='https://public.opendatasoft.com/explore/dataset/covid-19-pandemic-worldwide-data/information/?disjunctive.zone&disjunctive.category&sort=date',
-#             children=[
-#                 html.Img(src=app.get_asset_url('database.png'), width=20, height=20),
-#                 # "Original COVID dataset"
-#                 html.Span("Data")
-#             ],
-#         ),
-#     ],
-# )
-
-
-
 app.layout = html.Div(
     children=[
 
@@ -101,30 +63,21 @@ app.layout = html.Div(
 
         # CONTENT
         html.Section([
-            
-            # Line 1 : KPIS - World
-            # html.Div(
-            #     id='world_line_1',
-            #     children = [ 
-            #         html.Div(children = ['🚨 Confirmed', html.Br(), world['total_confirmed']], id='confirmed_world_total', className='mini_container'),
-            #         html.Div(children = ['🏡 Recovered', html.Br(), world['total_recovered']], id='recovered_world_total', className='mini_container'),
-            #         html.Div(children = [' ⚰️ Victims',   html.Br(), world['total_deaths']],    id='deaths_world_total',    className='mini_container'),            
-            #     ],
-            # ),
-            # html.Br(),
-            # links,
 
-            # Line 2 : MAP - AMES
-
-            
+            # Line 1 : MAP - GA
             html.Div(
                 id='ga_line',
                 children = [
-                    dcc.Graph(id='ga_map', figure=ga['figure'], config={'scrollZoom': False}),         
-                ],
-            ),
-            # html.Br(),
-        ]),
+                    dcc.Graph(
+                        id='ga_map', 
+                        figure=ga['figure'], 
+                        config={'scrollZoom': False}
+                        ),         
+                    ], 
+                ), 
+            html.Br(),
+            ], 
+        ),
     ],
 )
 

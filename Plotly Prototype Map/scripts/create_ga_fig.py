@@ -5,7 +5,6 @@ import pandas as pd
 from logzero import logger
 from plotly import graph_objs as go
 import plotly.express as px
-import geopandas as gpd
 import utils_haystacks as f
 pd.set_option('chained_assignment', None)
 
@@ -70,27 +69,25 @@ def create_ga_fig(df, mapbox_access_token):
 
     # Load in county-level geoJSON
     # https://maps.princeton.edu/catalog/tufts-gacounties10
-    # ga_counties = "../data/geojson/tufts-gacounties10-geojson.json"
-    # map_ga_counties = gpd.read_file(ga_counties)
-    map_ga_counties = "../data/geojson/tufts-gacounties10-geojson.json"
+    with open('../data/geojson/tufts-gacounties10-geojson.json') as json_data:
+        map_ga_counties = json.load(json_data)
 
     # Load in zipcode-level geoJSON
     # https://maps.princeton.edu/catalog/harvard-tg00gazcta
-    ga_zipcodes = "../data/geojson/harvard-tg00gazcta-geojson.json"
-    map_ga_zipcodes = gpd.read_file(ga_zipcodes)
+    with open('../data/geojson/harvard-tg00gazcta-geojson.json') as json_data:
+        map_ga_zipcodes = json.load(json_data)
 
     # Create choropleth maps for trace1
     trace1 = []
     # For county-level granularity
-    logger.info(type(map_ga_counties))
-    logger.info(map_ga_counties)
     for q in Types[:2]:
         trace1.append(go.Choroplethmapbox(
             geojson = map_ga_counties,
-            locations = q.index.tolist(),
+            locations = counties,
+            featureidkey='properties.name10',
             # Fix this to indicate what value is being aggregated using the correct syntax
             # x = q.columns[0],
-            z = q[q.columns[0]].tolist(), 
+            z = q[q.columns[1]].tolist(), 
             colorscale = pl_deep,
             text = counties, 
             colorbar = dict(thickness=20, ticklen=3),
@@ -101,22 +98,23 @@ def create_ga_fig(df, mapbox_access_token):
                             "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
                             "<extra></extra>")) # "<extra></extra>" means we info in the secondary box is not displayed
     # # For zipcode-level granularity
-    # for q in Types[2:]:
-    #     trace1.append(go.Choroplethmapbox(
-    #         geojson = map_ga_zipcodes,
-    #         locations = q.index.tolist(),
-    #         # Fix this to indicate what value is being aggregated using the correct syntax
-    #         # x = q.columns[0],
-    #         z = q[q.columns[0]].tolist(), 
-    #         colorscale = pl_deep,
-    #         text = zipcodes, 
-    #         colorbar = dict(thickness=20, ticklen=3),
-    #         marker_line_width=0, marker_opacity=0.7,
-    #         visible=False,
-    #         subplot='mapbox1',
-    #         hovertemplate = "<b>%{text}</b><br><br>" +
-    #                         "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
-    #                         "<extra></extra>")) # "<extra></extra>" means we info in the secondary box is not displayed
+    for q in Types[2:]:
+        trace1.append(go.Choroplethmapbox(
+            geojson = map_ga_zipcodes,
+            locations = zipcodes,
+            featureidkey='properties.ZCTA',
+            # Fix this to indicate what value is being aggregated using the correct syntax
+            # x = q.columns[0],
+            z = q[q.columns[1]].tolist(), 
+            colorscale = pl_deep,
+            text = zipcodes, 
+            colorbar = dict(thickness=20, ticklen=3),
+            marker_line_width=0, marker_opacity=0.7,
+            visible=False,
+            subplot='mapbox1',
+            hovertemplate = "<b>%{text}</b><br><br>" +
+                            "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
+                            "<extra></extra>")) # "<extra></extra>" means we info in the secondary box is not displayed
 
     # Create bar plot for trace2
     trace2 = []
@@ -150,13 +148,14 @@ def create_ga_fig(df, mapbox_access_token):
     layout = go.Layout(
         title = {'text': 'Georgia House Quantity and Average Selling Price',
         'font': {'size': 28, 'family': 'Arial'}},
+        height = 600,
         autosize = True,
         
         mapbox1 = dict(
             domain = {'x': [0.3, 1],'y': [0, 1]},
             center = dict(lat = latitude, lon = longitude),
             accesstoken = mapbox_access_token, 
-            zoom = 12),
+            zoom = 6),
         xaxis2={
             'zeroline': False,
             "showline": False,
@@ -206,7 +205,6 @@ def create_ga_fig(df, mapbox_access_token):
             )]))
 
     # Output final result to create pickle file
-    # return go.Figure(data = trace2, layout = layout)
     return go.Figure(data = trace2 + trace1, layout = layout)
 
 ################################################################################################
