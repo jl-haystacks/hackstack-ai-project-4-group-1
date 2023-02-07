@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore')
 import io
 import base64
 import matplotlib.pyplot as plt
+from logzero import logger
 
 # Define external stylesheets and apply them
 external_stylesheets = [dbc.themes.DARKLY]
@@ -71,7 +72,7 @@ for zipcode in set(df.zipcode.values):
 
 # Read pickle file that can be obtained by running the first half or so of MLR.ipynb
 MLR_MS_df = pd.read_pickle('Data/Pickle/MLR_modNshap.P')
-
+# logger.info(MLR_MS_df)
 ## Predictions... should probably pre-load for each model.
 df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
 df['MLR_caprate'] = 100*12*(df.rent/df.MLR_price)
