@@ -21,22 +21,22 @@ def process_ga_data(df):
     ga_county_count = pd.DataFrame(df.county.value_counts())
     ga_county_count = ga_county_count.reset_index().rename(columns = {'index':'county', 'county':'num_houses'})
     ga_county_count['county'] = ga_county_count['county'].astype(str)
-
+    # logger.info(ga_county_count)
     # Aggregate counties by average selling price of houses
     ga_county_price = pd.DataFrame(df.groupby(['county'])['price'].mean())
-    ga_county_price = ga_county_price.reset_index().rename(columns = {'price':'avg_price'})
+    ga_county_price = ga_county_price.sort_values(['price'], ascending=False).reset_index().rename(columns = {'price':'avg_price'})
     ga_county_price['county'] = ga_county_price['county'].astype(str)
-
+    # logger.info(ga_county_price)
     # Aggregate zipcodes by number of houses
     ga_zipcode_count = pd.DataFrame(df.zipcode.value_counts())
     ga_zipcode_count = ga_zipcode_count.reset_index().rename(columns = {'index':'zipcode', 'zipcode':'num_houses'})
     ga_zipcode_count['zipcode'] = ga_zipcode_count['zipcode'].astype(str)
-
+    # logger.info(ga_zipcode_count)
     # Aggregate zipcodes by average selling price of houses
     ga_zipcode_price = pd.DataFrame(df.groupby(['zipcode'])['price'].mean())
-    ga_zipcode_price = ga_zipcode_price.reset_index().rename(columns = {'price':'avg_price'})
+    ga_zipcode_price = ga_zipcode_price.sort_values(['price'], ascending=False).reset_index().rename(columns = {'price':'avg_price'})
     ga_zipcode_price['zipcode'] = ga_zipcode_price['zipcode'].astype(str)
-    
+    # logger.info(ga_zipcode_price)
     # Output final result to input into next function
     return [ga_county_count, ga_county_price, ga_zipcode_count, ga_zipcode_price]
 
@@ -62,10 +62,6 @@ def create_ga_fig(df, mapbox_access_token):
     
     # Unpack DataFrames generated from previous function
     Types = df
-    
-    # Generate list of counties and zipcodes
-    counties = Types[0]['county'].str.title().tolist()
-    zipcodes = Types[2]['zipcode'].str.title().tolist()
 
     # Load in county-level geoJSON
     # https://maps.princeton.edu/catalog/tufts-gacounties10
@@ -83,13 +79,13 @@ def create_ga_fig(df, mapbox_access_token):
     for q in Types[:2]:
         trace1.append(go.Choroplethmapbox(
             geojson = map_ga_counties,
-            locations = counties,
+            locations = q[q.columns[0]].tolist(),
             featureidkey='properties.name10',
             # Fix this to indicate what value is being aggregated using the correct syntax
             # x = q.columns[0],
             z = q[q.columns[1]].tolist(), 
             colorscale = pl_deep,
-            text = counties, 
+            text = q[q.columns[0]].tolist(), 
             colorbar = dict(thickness=20, ticklen=3),
             marker_line_width=0, marker_opacity=0.7,
             visible=False,
@@ -101,13 +97,13 @@ def create_ga_fig(df, mapbox_access_token):
     for q in Types[2:]:
         trace1.append(go.Choroplethmapbox(
             geojson = map_ga_zipcodes,
-            locations = zipcodes,
+            locations = q[q.columns[0]].tolist(),
             featureidkey='properties.ZCTA',
             # Fix this to indicate what value is being aggregated using the correct syntax
             # x = q.columns[0],
             z = q[q.columns[1]].tolist(), 
             colorscale = pl_deep,
-            text = zipcodes, 
+            text = q[q.columns[0]].tolist(), 
             colorbar = dict(thickness=20, ticklen=3),
             marker_line_width=0, marker_opacity=0.7,
             visible=False,
@@ -121,9 +117,9 @@ def create_ga_fig(df, mapbox_access_token):
     for q in Types:
         trace2.append(go.Bar(
             # Sort items in descending order by value (independent variable)
-            x = q.sort_values([q.columns[0]], ascending=False).head(10)[q.columns[0]].tolist(),
+            x = q.sort_values([q.columns[1]], ascending=False).head(10)[q.columns[1]],
             # Sort items in corresponding order by name (dependent variable)
-            y = q.sort_values([q.columns[0]], ascending=False).head(10).index.tolist(),
+            y = q.sort_values([q.columns[1]], ascending=False).head(10)[q.columns[0]],
             xaxis = 'x2',
             yaxis = 'y2',
             marker = dict(
@@ -148,7 +144,7 @@ def create_ga_fig(df, mapbox_access_token):
     layout = go.Layout(
         title = {'text': 'Georgia House Quantity and Average Selling Price',
         'font': {'size': 28, 'family': 'Arial'}},
-        height = 600,
+        height = 800,
         autosize = True,
         
         mapbox1 = dict(
@@ -205,7 +201,7 @@ def create_ga_fig(df, mapbox_access_token):
             )]))
 
     # Output final result to create pickle file
-    return go.Figure(data = trace2 + trace1, layout = layout)
+    return go.Figure(data = trace1 + trace2, layout = layout)
 
 ################################################################################################
 ################################################################################################
