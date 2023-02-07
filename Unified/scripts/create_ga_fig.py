@@ -89,6 +89,7 @@ def create_ga_fig(df, mapbox_access_token):
             colorbar = dict(thickness=20, ticklen=3),
             marker_line_width=0, marker_opacity=0.7,
             visible=False,
+            # Specify where this map shall be placed in the layout
             subplot='mapbox1',
             hovertemplate = "<b>%{text}</b><br><br>" +
                             "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
@@ -107,6 +108,7 @@ def create_ga_fig(df, mapbox_access_token):
             colorbar = dict(thickness=20, ticklen=3),
             marker_line_width=0, marker_opacity=0.7,
             visible=False,
+            # Specify where this map shall be placed in the layout
             subplot='mapbox1',
             hovertemplate = "<b>%{text}</b><br><br>" +
                             "Value: %{z}<br>" + # Fix this to indicate what value is being aggregated using the correct syntax
@@ -148,7 +150,9 @@ def create_ga_fig(df, mapbox_access_token):
         autosize = True,
         
         mapbox1 = dict(
-            domain = {'x': [0.3, 1],'y': [0, 1]},
+            # Set the position of the mapbox relative to the page
+            domain = {'x': [0.5, 1],'y': [0, 1]},
+            # Set the default position of the map on loading
             center = dict(lat = latitude, lon = longitude),
             accesstoken = mapbox_access_token, 
             zoom = 6),
@@ -172,8 +176,7 @@ def create_ga_fig(df, mapbox_access_token):
     )
     # Add a dropdown menu in the layout
     layout.update(updatemenus=list([
-        dict(x = 0,
-            y = 1,
+        dict(x = 0, y = 1, # Set the position of the dropdown menu relative to the page
             xanchor = 'left',
             yanchor = 'middle',
             buttons = list([

@@ -71,7 +71,7 @@ app.layout = html.Div(
                     dcc.Graph(
                         id='ga_map', 
                         figure=ga['figure'], 
-                        config={'scrollZoom': False}
+                        config={'scrollZoom': True}
                         ),         
                     ], 
                 ), 

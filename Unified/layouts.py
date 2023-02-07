@@ -4,11 +4,12 @@ from dash import html
 import plotly.graph_objs as go
 import pandas as pd
 import numpy as np
-from dash import dash_table
-from dash.dash_table.Format import Format, Group
-from dash.dash_table.FormatTemplate import FormatTemplate
+# from dash import dash_table
+# from dash.dash_table.Format import Format, Group
+# from dash.dash_table.FormatTemplate import FormatTemplate
 from datetime import datetime as dt
 from app import app
+import scripts.utils_haystacks as f
 
 ####################################################################################################
 # 000 - FORMATTING INFO
@@ -147,59 +148,65 @@ corporate_layout = go.Layout(
 # 000 - DATA MAPPING
 ####################################################################################################
 
-#Sales mapping
-sales_filepath = 'data/datasource.xlsx'
+# Load pre computed data
+ga = f.load_pickle('ga_info.p')
 
-sales_fields = {
-    'date' : 'Date',
-    'reporting_group_l1' : 'Country',
-    'reporting_group_l2' : 'City',
-    'sales' : 'Sales Units',
-    'revenues' : 'Revenues',
-    'sales target' : 'Sales Targets',
-    'rev target' : 'Rev Targets',
-    'num clients' : 'nClients'
-    }
-sales_formats = {
-    sales_fields['date'] : '%d/%m/%Y'
-}
+# Deployment inforamtion
+PORT = 8050
+
+# #Sales mapping
+# sales_filepath = 'data/datasource.xlsx'
+
+# sales_fields = {
+#     'date' : 'Date',
+#     'reporting_group_l1' : 'Country',
+#     'reporting_group_l2' : 'City',
+#     'sales' : 'Sales Units',
+#     'revenues' : 'Revenues',
+#     'sales target' : 'Sales Targets',
+#     'rev target' : 'Rev Targets',
+#     'num clients' : 'nClients'
+#     }
+# sales_formats = {
+#     sales_fields['date'] : '%d/%m/%Y'
+# }
 
 ####################################################################################################
 # 000 - IMPORT DATA
 ####################################################################################################
 
 ###########################
-#Import sales data
-xls = pd.ExcelFile(sales_filepath)
-sales_import=xls.parse('Static')
+# #Import sales data
+# xls = pd.ExcelFile(sales_filepath)
+# sales_import=xls.parse('Static')
 
-#Format date field
-sales_import[sales_fields['date']] = pd.to_datetime(sales_import[sales_fields['date']], format=sales_formats[sales_fields['date']])
-sales_import['date_2'] = sales_import[sales_fields['date']].dt.date
-min_dt = sales_import['date_2'].min()
-min_dt_str = str(min_dt)
-max_dt = sales_import['date_2'].max()
-max_dt_str = str(max_dt)
+# #Format date field
+# sales_import[sales_fields['date']] = pd.to_datetime(sales_import[sales_fields['date']], format=sales_formats[sales_fields['date']])
+# sales_import['date_2'] = sales_import[sales_fields['date']].dt.date
+# min_dt = sales_import['date_2'].min()
+# min_dt_str = str(min_dt)
+# max_dt = sales_import['date_2'].max()
+# max_dt_str = str(max_dt)
 
-#Create L1 dropdown options
-repo_groups_l1 = sales_import[sales_fields['reporting_group_l1']].unique()
-repo_groups_l1_all_2 = [
-    {'label' : k, 'value' : k} for k in sorted(repo_groups_l1)
-    ]
-repo_groups_l1_all_1 = [{'label' : '(Select All)', 'value' : 'All'}]
-repo_groups_l1_all = repo_groups_l1_all_1 + repo_groups_l1_all_2
+# #Create L1 dropdown options
+# repo_groups_l1 = sales_import[sales_fields['reporting_group_l1']].unique()
+# repo_groups_l1_all_2 = [
+#     {'label' : k, 'value' : k} for k in sorted(repo_groups_l1)
+#     ]
+# repo_groups_l1_all_1 = [{'label' : '(Select All)', 'value' : 'All'}]
+# repo_groups_l1_all = repo_groups_l1_all_1 + repo_groups_l1_all_2
 
-#Initialise L2 dropdown options
-repo_groups_l2 = sales_import[sales_fields['reporting_group_l2']].unique()
-repo_groups_l2_all_2 = [
-    {'label' : k, 'value' : k} for k in sorted(repo_groups_l2)
-    ]
-repo_groups_l2_all_1 = [{'label' : '(Select All)', 'value' : 'All'}]
-repo_groups_l2_all = repo_groups_l2_all_1 + repo_groups_l2_all_2
-repo_groups_l1_l2 = {}
-for l1 in repo_groups_l1:
-    l2 = sales_import[sales_import[sales_fields['reporting_group_l1']] == l1][sales_fields['reporting_group_l2']].unique()
-    repo_groups_l1_l2[l1] = l2
+# #Initialise L2 dropdown options
+# repo_groups_l2 = sales_import[sales_fields['reporting_group_l2']].unique()
+# repo_groups_l2_all_2 = [
+#     {'label' : k, 'value' : k} for k in sorted(repo_groups_l2)
+#     ]
+# repo_groups_l2_all_1 = [{'label' : '(Select All)', 'value' : 'All'}]
+# repo_groups_l2_all = repo_groups_l2_all_1 + repo_groups_l2_all_2
+# repo_groups_l1_l2 = {}
+# for l1 in repo_groups_l1:
+#     l2 = sales_import[sales_import[sales_fields['reporting_group_l1']] == l1][sales_fields['reporting_group_l2']].unique()
+#     repo_groups_l1_l2[l1] = l2
 
 ################################################################################################################################################## SET UP END
 
@@ -245,7 +252,7 @@ def get_header():
 
 #####################
 # Nav bar
-def get_navbar(p = 'map'):
+def get_navbar(p = 'page1'):
 
     navbar_page1 = html.Div([
 
@@ -393,107 +400,120 @@ page1 = html.Div([
 
     #####################
     #Row 2 : Nav bar
-    get_navbar('sales'),
+    get_navbar('page1'),
+
+    #####################
+    #Row 3 : Maps and bar charts
+    html.Div(
+    id='ga_line',
+    children = [
+        dcc.Graph(
+            id='ga_map', 
+            figure=ga['figure'], 
+            config={'scrollZoom': True}
+            ),         
+        ], 
+    ), 
 
     #####################
     #Row 3 : Filters
-    html.Div([ # External row
+    # html.Div([ # External row
 
-        html.Div([ # External 12-column
+    #     html.Div([ # External 12-column
 
-            html.Div([ # Internal row
+    #         html.Div([ # Internal row
 
-                #Internal columns
-                html.Div([
-                ],
-                className = 'col-2'), # Blank 2 columns
+    #             #Internal columns
+    #             html.Div([
+    #             ],
+    #             className = 'col-2'), # Blank 2 columns
 
-                #Filter pt 1
-                html.Div([
+    #             #Filter pt 1
+    #             html.Div([
 
-                    html.Div([
-                        html.H5(
-                            children='Filters by Date:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div(['Select a date range: ',
-                            dcc.DatePickerRange(
-                                id='date-picker-sales',
-                                start_date = min_dt_str,
-                                end_date = max_dt_str,
-                                min_date_allowed = min_dt,
-                                max_date_allowed = max_dt,
-                                start_date_placeholder_text = 'Start date',
-                                display_format='DD-MMM-YYYY',
-                                first_day_of_week = 1,
-                                end_date_placeholder_text = 'End date',
-                                style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'})
-                        ], style = {'margin-top' : '5px'}
-                        )
+    #                 html.Div([
+    #                     html.H5(
+    #                         children='Filters by Date:',
+    #                         style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+    #                     ),
+    #                     #Date range picker
+    #                     html.Div(['Select a date range: ',
+    #                         dcc.DatePickerRange(
+    #                             id='date-picker-sales',
+    #                             start_date = min_dt_str,
+    #                             end_date = max_dt_str,
+    #                             min_date_allowed = min_dt,
+    #                             max_date_allowed = max_dt,
+    #                             start_date_placeholder_text = 'Start date',
+    #                             display_format='DD-MMM-YYYY',
+    #                             first_day_of_week = 1,
+    #                             end_date_placeholder_text = 'End date',
+    #                             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'})
+    #                     ], style = {'margin-top' : '5px'}
+    #                     )
 
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
+    #                 ],
+    #                 style = {'margin-top' : '10px',
+    #                         'margin-bottom' : '5px',
+    #                         'text-align' : 'left',
+    #                         'paddingLeft': 5})
 
-                ],
-                className = 'col-4'), # Filter part 1
+    #             ],
+    #             className = 'col-4'), # Filter part 1
 
-                #Filter pt 2
-                html.Div([
+    #             #Filter pt 2
+    #             html.Div([
 
-                    html.Div([
-                        html.H5(
-                            children='Filters by Reporting Groups:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Reporting group selection l1
-                        html.Div([
-                            dcc.Dropdown(id = 'reporting-groups-l1dropdown-sales',
-                                options = repo_groups_l1_all,
-                                value = [''],
-                                multi = True,
-                                placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
-                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
-                                )
-                            ],
-                            style = {'width' : '70%', 'margin-top' : '5px'}),
-                        #Reporting group selection l2
-                        html.Div([
-                            dcc.Dropdown(id = 'reporting-groups-l2dropdown-sales',
-                                options = repo_groups_l2_all,
-                                value = [''],
-                                multi = True,
-                                placeholder = "Select " +sales_fields['reporting_group_l2']+ " (leave blank to include all)",
-                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
-                                )
-                            ],
-                            style = {'width' : '70%', 'margin-top' : '5px'})
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
+    #                 html.Div([
+    #                     html.H5(
+    #                         children='Filters by Reporting Groups:',
+    #                         style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+    #                     ),
+    #                     #Reporting group selection l1
+    #                     html.Div([
+    #                         dcc.Dropdown(id = 'reporting-groups-l1dropdown-sales',
+    #                             options = repo_groups_l1_all,
+    #                             value = [''],
+    #                             multi = True,
+    #                             placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
+    #                             style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+    #                             )
+    #                         ],
+    #                         style = {'width' : '70%', 'margin-top' : '5px'}),
+    #                     #Reporting group selection l2
+    #                     html.Div([
+    #                         dcc.Dropdown(id = 'reporting-groups-l2dropdown-sales',
+    #                             options = repo_groups_l2_all,
+    #                             value = [''],
+    #                             multi = True,
+    #                             placeholder = "Select " +sales_fields['reporting_group_l2']+ " (leave blank to include all)",
+    #                             style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+    #                             )
+    #                         ],
+    #                         style = {'width' : '70%', 'margin-top' : '5px'})
+    #                 ],
+    #                 style = {'margin-top' : '10px',
+    #                         'margin-bottom' : '5px',
+    #                         'text-align' : 'left',
+    #                         'paddingLeft': 5})
 
-                ],
-                className = 'col-4'), # Filter part 2
+    #             ],
+    #             className = 'col-4'), # Filter part 2
 
-                html.Div([
-                ],
-                className = 'col-2') # Blank 2 columns
+    #             html.Div([
+    #             ],
+    #             className = 'col-2') # Blank 2 columns
 
 
-            ],
-            className = 'row') # Internal row
+    #         ],
+    #         className = 'row') # Internal row
 
-        ],
-        className = 'col-12',
-        style = filterdiv_borderstyling) # External 12-column
+    #     ],
+    #     className = 'col-12',
+    #     style = filterdiv_borderstyling) # External 12-column
 
-    ],
-    className = 'row sticky-top'), # External row
+    # ],
+    # className = 'row sticky-top'), # External row
 
     #####################
     #Row 4
@@ -501,116 +521,116 @@ page1 = html.Div([
 
     #####################
     #Row 5 : Charts
-    html.Div([ # External row
+    # html.Div([ # External row
 
-        html.Div([
-        ],
-        className = 'col-1'), # Blank 1 column
+    #     html.Div([
+    #     ],
+    #     className = 'col-1'), # Blank 1 column
 
-        html.Div([ # External 10-column
+    #     html.Div([ # External 10-column
 
-            html.H2(children = "Sales Performances",
-                    style = {'color' : corporate_colors['white']}),
+    #         html.H2(children = "Sales Performances",
+    #                 style = {'color' : corporate_colors['white']}),
 
-            html.Div([ # Internal row - RECAPS
+    #         html.Div([ # Internal row - RECAPS
 
-                html.Div([],className = 'col-4'), # Empty column
+    #             html.Div([],className = 'col-4'), # Empty column
 
-                html.Div([
-                    dash_table.DataTable(
-                        id='recap-table',
-                        style_header = {
-                            'backgroundColor': 'transparent',
-                            'fontFamily' : corporate_font_family,
-                            'font-size' : '1rem',
-                            'color' : corporate_colors['light-green'],
-                            'border': '0px transparent',
-                            'textAlign' : 'center'},
-                        style_cell = {
-                            'backgroundColor': 'transparent',
-                            'fontFamily' : corporate_font_family,
-                            'font-size' : '0.85rem',
-                            'color' : corporate_colors['white'],
-                            'border': '0px transparent',
-                            'textAlign' : 'center'},
-                        cell_selectable = False,
-                        column_selectable = False
-                    )
-                ],
-                className = 'col-4'),
+    #             html.Div([
+    #                 dash_table.DataTable(
+    #                     id='recap-table',
+    #                     style_header = {
+    #                         'backgroundColor': 'transparent',
+    #                         'fontFamily' : corporate_font_family,
+    #                         'font-size' : '1rem',
+    #                         'color' : corporate_colors['light-green'],
+    #                         'border': '0px transparent',
+    #                         'textAlign' : 'center'},
+    #                     style_cell = {
+    #                         'backgroundColor': 'transparent',
+    #                         'fontFamily' : corporate_font_family,
+    #                         'font-size' : '0.85rem',
+    #                         'color' : corporate_colors['white'],
+    #                         'border': '0px transparent',
+    #                         'textAlign' : 'center'},
+    #                     cell_selectable = False,
+    #                     column_selectable = False
+    #                 )
+    #             ],
+    #             className = 'col-4'),
 
-                html.Div([],className = 'col-4') # Empty column
+    #             html.Div([],className = 'col-4') # Empty column
 
-            ],
-            className = 'row',
-            style = recapdiv
-            ), # Internal row - RECAPS
+    #         ],
+    #         className = 'row',
+    #         style = recapdiv
+    #         ), # Internal row - RECAPS
 
-            html.Div([ # Internal row
+    #         html.Div([ # Internal row
 
-                # Chart Column
-                html.Div([
-                    dcc.Graph(
-                        id='sales-count-day')
-                ],
-                className = 'col-4'),
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-count-day')
+    #             ],
+    #             className = 'col-4'),
 
-                # Chart Column
-                html.Div([
-                    dcc.Graph(
-                        id='sales-count-month')
-                ],
-                className = 'col-4'),
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-count-month')
+    #             ],
+    #             className = 'col-4'),
 
-                # Chart Column
-                html.Div([
-                    dcc.Graph(
-                        id='sales-weekly-heatmap')
-                ],
-                className = 'col-4')
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-weekly-heatmap')
+    #             ],
+    #             className = 'col-4')
 
-            ],
-            className = 'row'), # Internal row
+    #         ],
+    #         className = 'row'), # Internal row
 
-            html.Div([ # Internal row
+    #         html.Div([ # Internal row
 
-                # Chart Column
-                html.Div([
-                    dcc.Graph(
-                        id='sales-count-country')
-                ],
-                className = 'col-4'),
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-count-country')
+    #             ],
+    #             className = 'col-4'),
 
-                # Chart Column
-                html.Div([
-                    dcc.Graph(
-                        id='sales-bubble-county')
-                ],
-                className = 'col-4'),
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-bubble-county')
+    #             ],
+    #             className = 'col-4'),
 
-                # Chart Column
-                html.Div([
-                    dcc.Graph(
-                        id='sales-count-city')
-                ],
-                className = 'col-4')
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-count-city')
+    #             ],
+    #             className = 'col-4')
 
-            ],
-            className = 'row') # Internal row
+    #         ],
+    #         className = 'row') # Internal row
 
 
-        ],
-        className = 'col-10',
-        style = externalgraph_colstyling), # External 10-column
+    #     ],
+    #     className = 'col-10',
+    #     style = externalgraph_colstyling), # External 10-column
 
-        html.Div([
-        ],
-        className = 'col-1'), # Blank 1 column
+    #     html.Div([
+    #     ],
+    #     className = 'col-1'), # Blank 1 column
 
-    ],
-    className = 'row',
-    style = externalgraph_rowstyling
-    ), # External row
+    # ],
+    # className = 'row',
+    # style = externalgraph_rowstyling
+    # ), # External row
 
 ])
 

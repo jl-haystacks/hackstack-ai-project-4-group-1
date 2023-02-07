@@ -4,9 +4,9 @@ from dash import html
 import plotly.graph_objs as go
 import pandas as pd
 import numpy as np
-from dash import dash_table
-from dash.dash_table.Format import Format, Group
-from dash.dash_table.FormatTemplate import FormatTemplate
+# from dash import dash_table
+# from dash.dash_table.Format import Format, Group
+# from dash.dash_table.FormatTemplate import FormatTemplate
 from datetime import datetime as dt
 from app import app
 
