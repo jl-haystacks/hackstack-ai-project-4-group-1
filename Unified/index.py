@@ -8,8 +8,8 @@ from layouts import page1, page2, page3
 import callbacks
 
 app.layout = html.Div([
-    dcc.Location(id='url', refresh=False),
-    html.Div(id='page-content')
+     dcc.Location(id='url', refresh=False),
+     html.Div(id='page-content')
 ])
 
 @app.callback(dash.dependencies.Output('page-content', 'children'),

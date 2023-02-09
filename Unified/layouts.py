@@ -297,8 +297,7 @@ def get_navbar(p = 'page1'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Map',
-                        style = navbarcurrentpage),
+                html.H4(children = 'Map'),
                 href='/apps/page1'
                 )
         ],
@@ -306,7 +305,8 @@ def get_navbar(p = 'page1'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Analytics'),
+                html.H4(children = 'Analytics',
+                        style = navbarcurrentpage),
                 href='/apps/page2'
                 )
         ],
@@ -334,8 +334,7 @@ def get_navbar(p = 'page1'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Map',
-                        style = navbarcurrentpage),
+                html.H4(children = 'Map',),
                 href='/apps/page1'
                 )
         ],
@@ -351,7 +350,8 @@ def get_navbar(p = 'page1'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'SHAP/LIME'),
+                html.H4(children = 'SHAP/LIME',
+                        style = navbarcurrentpage),
                 href='/apps/page3'
                 )
         ],
@@ -410,8 +410,8 @@ page1 = html.Div([
         dcc.Graph(
             id='ga_map', 
             figure=ga['figure'], 
-            config={'scrollZoom': True}
-            ),         
+            config={'scrollZoom': True},
+            ),       
         ], 
     ), 
 

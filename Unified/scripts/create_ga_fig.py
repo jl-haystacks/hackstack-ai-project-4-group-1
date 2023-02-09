@@ -182,22 +182,22 @@ def create_ga_fig(df, mapbox_access_token):
             buttons = list([
                 dict(
                     args = ['visible', [True, False, False, False]],
-                    label = 'Counties: Number of Houses',
+                    label = 'Counties: Number of Listings',
                     method = 'restyle'
                     ),
                 dict(
                     args = ['visible', [False, True, False, False]],
-                    label = 'Counties: Average House Price',
+                    label = 'Counties: Average Listing Price',
                     method = 'restyle'
                     ),
                 dict(
                     args = ['visible', [False, False, True, False]],
-                    label = 'Zipcodes: Number of Houses',
+                    label = 'Zipcodes: Number of Listings',
                     method = 'restyle'
                     ),
                 dict(
                     args = ['visible', [False, False, False, True]],
-                    label = 'Zipcodes: Average House Price',
+                    label = 'Zipcodes: Average Listing Price',
                     method = 'restyle'
                     )
                 ]),
