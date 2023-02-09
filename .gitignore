@@ -5,9 +5,11 @@ Plotly Prototype V2/xxx haystacks_prototype.py
 *.json
 Geolocation/.ipynb_checkpoints/Haystacks_GA_Geolocation-checkpoint.ipynb
 Geolocation/.ipynb_checkpoints/Haystacks_GA_GeoJSON_Test-checkpoint.ipynb
-*.P
-*.p
-*.p
-*.p
 Models/.ipynb_checkpoints/MLR-checkpoint.ipynb
+Models/MLR_modNshap.P
+Models/RF_modNshap.P
+Models/XGB_modNshap.P
+Models/linear_models.sav
+Models/ridge_models.sav
+~
 *.P
