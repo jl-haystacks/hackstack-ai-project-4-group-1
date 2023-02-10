@@ -92,5 +92,5 @@ MS_df.index = MS_df.zipcode
 MS_df = MS_df.drop(['zipcode'], axis=1)
 
 # Save pickle file
-filename = 'MLR_modNshap.P'
+filename = '../data/pickle/MLR_modNshap.P'
 pickle.dump(MS_df, open(filename, 'wb'))

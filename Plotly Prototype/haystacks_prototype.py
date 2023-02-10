@@ -48,10 +48,11 @@ df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[r
 
 # Reordering below... will delete above when it feels safe.
 
-features = ['listing_status', 'square_footage', 'overall_crime_grade',
-       'ES_rating', 'lot_size', 'baths_half', 'MS_rating', 'HS_rating',
-       'listing_special_features', 'beds', 'baths_full', 'year_built',
-       'property_crime_grade', 'transaction_type']
+features = ['square_footage', 'overall_crime_grade', 'ES_rating', 'lot_size', 'baths_half', 
+'MS_rating', 'HS_rating', 'beds', 'baths_full', 'year_built', 'property_crime_grade']
+
+# Features to be omitted from 'features':
+# omitted_features = ['listing_special_features', 'listing_status', 'transaction_type']
 
 # Define sales prices based on models to be utilized for generating scatter plots
 models = ['price']
@@ -149,7 +150,7 @@ app.layout = html.Div([
                 id='crossfilter-resolution',
                 options=[
                     {'label': 'State', 'value': 'state'},
-                    #{'label': 'County', 'value': 'county'},
+                    # {'label': 'County', 'value': 'county'},
                     {'label': 'Zip code', 'value': 'zipcode'},
                 ],
                 value='state',
@@ -223,29 +224,17 @@ def update_scale(resolution_dropdown):
 #     fig = shap.plots.beeswarm(MLR_MS_df.loc[focus,'shap_values'], max_display = None) 
 #     return fig
 
-
-# First callback to coordinate scatterplot with feature, model, and color gradient schema
-@app.callback(
-    dash.dependencies.Output('scatter-plot', 'figure'),
-    [
-        dash.dependencies.Input('crossfilter-feature', 'value'),
-        dash.dependencies.Input('crossfilter-model', 'value'),
-        dash.dependencies.Input('gradient-scheme', 'value'),
-        dash.dependencies.State('crossfilter-resolution', 'value'),
-        dash.dependencies.Input('filter-dropdown','value')
-    ]
-)
-
-## Shap values
+# First callback for SHAP values
 @app.callback(
     dash.dependencies.Output('shap-bee', 'src'),
     [
-        dash.dependencies.Input('filter-dropdown','value'),
+        dash.dependencies.State('filter-dropdown','value'),
         #dash.dependencies.State('crossfilter-resolution', 'value') ## Useful if we add county as well
         #dash.dependencies.Input('crossfilter-model', 'State')    ## need to figure out a good way to do this. Will probably use a Series of those model dataframes
-        dash.dependencies.State('shap-bee', 'src')
+        dash.dependencies.Input('shap-bee', 'src')
     ]
 )
+# Function to update SHAP values
 def update_shap(focus, current):
     if focus == 'Georgia':
         return current
@@ -261,7 +250,17 @@ def update_shap(focus, current):
     X = "data:image/png;base64,{}".format(data)
     return X
 
-
+# First callback to coordinate scatterplot with feature, model, and color gradient schema
+@app.callback(
+    dash.dependencies.Output('scatter-plot', 'figure'),
+    [
+        dash.dependencies.Input('crossfilter-feature', 'value'),
+        dash.dependencies.Input('crossfilter-model', 'value'),
+        dash.dependencies.Input('gradient-scheme', 'value'),
+        dash.dependencies.Input('crossfilter-resolution', 'value'),
+        dash.dependencies.Input('filter-dropdown','value')
+    ]
+)
 # Function to update graph in response to feature, model, and color gradient schema being updated
 def update_graph(feature, model, gradient, resolution, focus):
     # Filter dataframe 
