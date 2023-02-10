@@ -175,14 +175,14 @@ app.layout = html.Div([
                 # Update graph on hover
                 # hoverData={'points': [{'customdata': 0}]}
             )
-        ], style={'width': '74%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+        ], style={'width': '63%', 'height':'90%', 'display': 'inline-block'}),
         html.Div([
-                html.Img(id='shap-bee'),
+                html.Img(id='shap-bee', style = {'width': '135%', 'height': '250%'}),
                 # Place SHAP values here
                 html.H1(
                     children="SHAP Values"
                     ),
-            ], style={'width': '24%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+            ], style={'width': '28%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
         ]),
     # Point plot of average values of selected features
     html.Div([
@@ -228,10 +228,10 @@ def update_scale(resolution_dropdown):
 @app.callback(
     dash.dependencies.Output('shap-bee', 'src'),
     [
-        dash.dependencies.State('filter-dropdown','value'),
+        dash.dependencies.Input('filter-dropdown','value'),
         #dash.dependencies.State('crossfilter-resolution', 'value') ## Useful if we add county as well
         #dash.dependencies.Input('crossfilter-model', 'State')    ## need to figure out a good way to do this. Will probably use a Series of those model dataframes
-        dash.dependencies.Input('shap-bee', 'src')
+        dash.dependencies.State('shap-bee', 'src')
     ]
 )
 # Function to update SHAP values
@@ -243,7 +243,7 @@ def update_shap(focus, current):
         show=False)
     fig = plt.gcf()
     buf = io.BytesIO() # in-memory files
-    plt.savefig(buf, format = "png")
+    plt.savefig(buf, format = "png", transparent = True)
     plt.close()
     data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
     buf.close()
