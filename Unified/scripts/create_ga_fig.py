@@ -5,8 +5,134 @@ import pandas as pd
 from logzero import logger
 from plotly import graph_objs as go
 import plotly.express as px
-import utils_haystacks as f
+# import utils_haystacks as f
 pd.set_option('chained_assignment', None)
+
+####################################################################################################
+# 000 - FORMATTING INFO
+####################################################################################################
+
+####################### Corporate css formatting
+corporate_colors = {
+    'dark-blue-grey' : 'rgb(62, 64, 76)',
+    'medium-blue-grey' : 'rgb(77, 79, 91)',
+    'superdark-green' : 'rgb(41, 56, 55)',
+    'dark-green' : 'rgb(57, 81, 85)',
+    'medium-green' : 'rgb(93, 113, 120)',
+    'light-green' : 'rgb(186, 218, 212)',
+    'pink-red' : 'rgb(255, 101, 131)',
+    'dark-pink-red' : 'rgb(247, 80, 99)',
+    'white' : 'rgb(251, 251, 252)',
+    'light-grey' : 'rgb(208, 206, 206)'
+}
+
+externalgraph_rowstyling = {
+    'margin-left' : '15px',
+    'margin-right' : '15px'
+}
+
+externalgraph_colstyling = {
+    'border-radius' : '10px',
+    'border-style' : 'solid',
+    'border-width' : '1px',
+    'border-color' : corporate_colors['superdark-green'],
+    'background-color' : corporate_colors['superdark-green'],
+    'box-shadow' : '0px 0px 17px 0px rgba(186, 218, 212, .5)',
+    'padding-top' : '10px'
+}
+
+filterdiv_borderstyling = {
+    'border-radius' : '0px 0px 10px 10px',
+    'border-style' : 'solid',
+    'border-width' : '1px',
+    'border-color' : corporate_colors['light-green'],
+    'background-color' : corporate_colors['light-green'],
+    'box-shadow' : '2px 5px 5px 1px rgba(255, 101, 131, .5)'
+    }
+
+navbarcurrentpage = {
+    'text-decoration' : 'underline',
+    'text-decoration-color' : corporate_colors['pink-red'],
+    'text-shadow': '0px 0px 1px rgb(251, 251, 252)'
+    }
+
+recapdiv = {
+    'border-radius' : '10px',
+    'border-style' : 'solid',
+    'border-width' : '1px',
+    'border-color' : 'rgb(251, 251, 252, 0.1)',
+    'margin-left' : '15px',
+    'margin-right' : '15px',
+    'margin-top' : '15px',
+    'margin-bottom' : '15px',
+    'padding-top' : '5px',
+    'padding-bottom' : '5px',
+    'background-color' : 'rgb(251, 251, 252, 0.1)'
+    }
+
+recapdiv_text = {
+    'text-align' : 'left',
+    'font-weight' : '350',
+    'color' : corporate_colors['white'],
+    'font-size' : '1.5rem',
+    'letter-spacing' : '0.04em'
+    }
+
+####################### Corporate chart formatting
+
+corporate_title = {
+    'font' : {
+        'size' : 16,
+        'color' : corporate_colors['white']}
+}
+
+corporate_xaxis = {
+    'showgrid' : False,
+    'linecolor' : corporate_colors['light-grey'],
+    'color' : corporate_colors['light-grey'],
+    'tickangle' : 315,
+    'titlefont' : {
+        'size' : 12,
+        'color' : corporate_colors['light-grey']},
+    'tickfont' : {
+        'size' : 11,
+        'color' : corporate_colors['light-grey']},
+    'zeroline': False,
+    'domain': [0, 0.40],
+    'side': 'left',
+    'anchor': 'x2'
+}
+
+corporate_yaxis = {
+    'showgrid' : True,
+    'color' : corporate_colors['light-grey'],
+    'gridwidth' : 0.5,
+    'gridcolor' : corporate_colors['dark-green'],
+    'linecolor' : corporate_colors['light-grey'],
+    'titlefont' : {
+        'size' : 12,
+        'color' : corporate_colors['light-grey']},
+    'tickfont' : {
+        'size' : 11,
+        'color' : corporate_colors['light-grey']},
+    'zeroline': False,
+    # 'domain': [0.1, 0.9],
+    'anchor': 'y2',
+    'autorange': 'reversed',
+}
+
+corporate_font_family = 'Dosis'
+
+corporate_legend = {
+    'orientation' : 'h',
+    'yanchor' : 'bottom',
+    'y' : 1.01,
+    'xanchor' : 'right',
+    'x' : 1.05,
+	'font' : {'size' : 9, 'color' : corporate_colors['light-grey']}
+} # Legend will be on the top right, above the graph, horizontally
+
+corporate_margins = {'l' : 5, 'r' : 5, 't' : 45, 'b' : 15}  # Set top margin to in case there is a legend
 
 ################################################################################################
 ################################################################################################
@@ -65,12 +191,12 @@ def create_ga_fig(df, mapbox_access_token):
 
     # Load in county-level geoJSON
     # https://maps.princeton.edu/catalog/tufts-gacounties10
-    with open('../data/geojson/tufts-gacounties10-geojson.json') as json_data:
+    with open('./data/geojson/tufts-gacounties10-geojson.json') as json_data:
         map_ga_counties = json.load(json_data)
 
     # Load in zipcode-level geoJSON
     # https://maps.princeton.edu/catalog/harvard-tg00gazcta
-    with open('../data/geojson/harvard-tg00gazcta-geojson.json') as json_data:
+    with open('./data/geojson/harvard-tg00gazcta-geojson.json') as json_data:
         map_ga_zipcodes = json.load(json_data)
 
     # Create choropleth maps for trace1
@@ -144,64 +270,53 @@ def create_ga_fig(df, mapbox_access_token):
 
     # Set up coordinate systems in the layout
     layout = go.Layout(
-        title = {'text': 'Georgia House Quantity and Average Selling Price',
-        'font': {'size': 28, 'family': 'Arial'}},
-        height = 800,
+        font = {'family' : corporate_font_family},
+        title = corporate_title,
+        title_x = 0.5, # Align chart title to center
+        height = 600,
         autosize = True,
         
         mapbox1 = dict(
             # Set the position of the mapbox relative to the page
-            domain = {'x': [0.5, 1],'y': [0, 1]},
+            domain = {'x': [0.6, 1],'y': [0, 1]},
             # Set the default position of the map on loading
             center = dict(lat = latitude, lon = longitude),
             accesstoken = mapbox_access_token, 
             zoom = 6),
-        xaxis2={
-            'zeroline': False,
-            "showline": False,
-            "showticklabels": True,
-            'showgrid': True,
-            'domain': [0, 0.25],
-            'side': 'left',
-            'anchor': 'x2',
-        },
-        yaxis2={
-            'domain': [0.4, 0.9],
-            'anchor': 'y2',
-            'autorange': 'reversed',
-        },
-        margin=dict(l=100, r=20, t=70, b=70),
-        paper_bgcolor='rgb(204, 204, 204)',
-        plot_bgcolor='rgb(204, 204, 204)',
+        xaxis2 = corporate_xaxis,
+        yaxis2 = corporate_yaxis,
+        margin = corporate_margins,
+        paper_bgcolor = 'rgba(0,0,0,0)',
+        plot_bgcolor = 'rgba(0,0,0,0)',
     )
     # Add a dropdown menu in the layout
-    layout.update(updatemenus=list([
-        dict(x = 0, y = 1, # Set the position of the dropdown menu relative to the page
-            xanchor = 'left',
-            yanchor = 'middle',
-            buttons = list([
-                dict(
-                    args = ['visible', [True, False, False, False]],
-                    label = 'Counties: Number of Listings',
-                    method = 'restyle'
-                    ),
-                dict(
-                    args = ['visible', [False, True, False, False]],
-                    label = 'Counties: Average Listing Price',
-                    method = 'restyle'
-                    ),
-                dict(
-                    args = ['visible', [False, False, True, False]],
-                    label = 'Zipcodes: Number of Listings',
-                    method = 'restyle'
-                    ),
-                dict(
-                    args = ['visible', [False, False, False, True]],
-                    label = 'Zipcodes: Average Listing Price',
-                    method = 'restyle'
-                    )
-                ]),
-            )]))
+    # layout.update(updatemenus=list([
+    #     dict(x = 0, y = 1, # Set the position of the dropdown menu relative to the page
+    #         xanchor = 'left',
+    #         yanchor = 'middle',
+    #         buttons = list([
+    #             dict(
+    #                 args = ['visible', [True, False, False, False]],
+    #                 label = 'Counties: Number of Listings',
+    #                 method = 'restyle'
+    #                 ),
+    #             dict(
+    #                 args = ['visible', [False, True, False, False]],
+    #                 label = 'Counties: Average Listing Price',
+    #                 method = 'restyle'
+    #                 ),
+    #             dict(
+    #                 args = ['visible', [False, False, True, False]],
+    #                 label = 'Zipcodes: Number of Listings',
+    #                 method = 'restyle'
+    #                 ),
+    #             dict(
+    #                 args = ['visible', [False, False, False, True]],
+    #                 label = 'Zipcodes: Average Listing Price',
+    #                 method = 'restyle'
+    #                 )
+    #             ]),
+    #         )]))
 
     # Output final result to create pickle file
     return go.Figure(data = trace1 + trace2, layout = layout)
@@ -211,7 +326,7 @@ def create_ga_fig(df, mapbox_access_token):
 ################################################################################################
 
 
-if __name__ =="__main__":    
+# if __name__ =="__main__":    
 
     # See here: https://stackoverflow.com/questions/22282760/filenotfounderror-errno-2-no-such-file-or-directory
     # cwd = os.getcwd()  # Get the current working directory (cwd)
@@ -223,28 +338,28 @@ if __name__ =="__main__":
     # os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     # Loading necessary information
-    mapbox_access_token = f.config['mapbox']['token']
-    raw_dataset_path = "." + f.RAW_PATH + f.config['path']['name']
+    # mapbox_access_token = f.config['mapbox']['token']
+    # raw_dataset_path = "." + f.RAW_PATH + f.config['path']['name']
     
     # Creating dataFrames
-    df_raw = pd.read_csv(raw_dataset_path)
-    df_ga = process_ga_data(df_raw)
+    # df_raw = pd.read_csv(raw_dataset_path)
+    # df_ga = process_ga_data(df_raw)
     # df_total_kpi = df_world.groupby('date').sum().sort_index().iloc[-1]
     
     # Preparing figure
-    fig_ga = create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
+    # fig_ga = create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
 
     # Storing all necessay information for app
-    save = {
-        'figure':fig_ga,
+    # save = {
+    #     'figure':fig_ga,
         # 'last_date':df_world.index[-1][0],
         # 'total_confirmed': f.spacify_number(int(df_total_kpi['confirmed'])),
         # 'total_deaths': f.spacify_number(int(df_total_kpi['deaths'])),
         # 'total_recovered': f.spacify_number(int(df_total_kpi['recovered']))
-    }
-    f.save_pickle(save, 'ga_info.p')
+    # }
+    # f.save_pickle(save, 'ga_info.p')
 
     # Display information
-    logger.info('Georgia map updated.')
-    logger.info('Data sorted for dash application.')
+    # logger.info('Georgia map updated.')
+    # logger.info('Data sorted for dash application.')
     # logger.info('Last date in new dataset is {}'.format(df_world.index[-1][0]))
