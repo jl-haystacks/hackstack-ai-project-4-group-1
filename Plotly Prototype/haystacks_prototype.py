@@ -175,9 +175,9 @@ app.layout = html.Div([
                 # Update graph on hover
                 # hoverData={'points': [{'customdata': 0}]}
             )
-        ], style={'width': '63%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+        ], style={'width': '63%', 'height':'90%', 'display': 'inline-block'}),
         html.Div([
-                html.Img(id='shap-bee'),
+                html.Img(id='shap-bee', style = {'width': '135%', 'height': '250%'}),
                 # Place SHAP values here
                 html.H1(
                     children="SHAP Values"
@@ -243,7 +243,7 @@ def update_shap(focus, current):
         show=False)
     fig = plt.gcf()
     buf = io.BytesIO() # in-memory files
-    plt.savefig(buf, format = "png")
+    plt.savefig(buf, format = "png", transparent = True)
     plt.close()
     data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
     buf.close()
