@@ -1,9 +1,20 @@
 import dash
 from dash import dcc
+import dash_bootstrap_components as dbc
 from dash import html
-import plotly.graph_objs as go
+from jupyter_dash import JupyterDash
 import pandas as pd
 import numpy as np
+import plotly.express as px # plotly v 4.7.1
+import plotly.graph_objs as go
+import shap
+import pickle
+import warnings
+warnings.filterwarnings('ignore')
+import io
+import base64
+import matplotlib.pyplot as plt
+from logzero import logger
 # from dash import dash_table
 # from dash.dash_table.Format import Format, Group
 # from dash.dash_table.FormatTemplate import FormatTemplate
@@ -149,7 +160,7 @@ corporate_layout = go.Layout(
 # 000 - DATA MAPPING
 ####################################################################################################
 
-###########################
+########################### Page 1 - Maps
 # Load pre computed data
 # ga = f.load_pickle('ga_info.p')
 
@@ -159,6 +170,11 @@ PORT = 8050
 # Load necessary information for accessing source files
 mapbox_access_token = f.config['mapbox']['token']
 raw_dataset_path = f.RAW_PATH + f.config['path']['name']
+########################### Page 1 - Maps
+
+########################### Page 2 - Analytics
+
+########################### Page 2 - Analytics
 
 ###########################
 #Sales mapping
@@ -182,7 +198,7 @@ raw_dataset_path = f.RAW_PATH + f.config['path']['name']
 # 000 - IMPORT DATA
 ####################################################################################################
 
-###########################
+########################### Page 1 - Maps
 # Import map and bar chart data
 df_raw = pd.read_csv(raw_dataset_path)
 
@@ -199,6 +215,75 @@ repo_groups_l1_all = [
     {'label' : 'Zipcodes: Number of Listings', 'value' : 2},
     {'label' : 'Zipcodes: Average Listing Price', 'value' : 3},
     ]
+########################### Page 1 - Maps
+
+########################### Page 2 - Analytics
+# Read in external data into dash application
+df = df_raw
+df1 = df.copy()
+
+# Read pickle file that can be obtained by running the first half or so of MLR.ipynb
+MLR_MS_df = pd.read_pickle('data/pickle/MLR_modNshap.P')
+
+################################# Need to integrate below mask into pre-processing and take it out of here
+mask = {'F': 0,
+       'D-': 1,
+       'D': 2,
+       'D+': 3,
+       'C-': 4,
+       'C': 5,
+       'C+': 6,
+       'B-': 7,
+       'B': 8,
+       'B+': 9,
+       'A-': 10,
+       'A': 11}
+df['overall_crime_grade'] = df['overall_crime_grade'].apply(lambda row: mask[row])
+df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[row])
+#################################
+
+# Define features to be utilized for generating scatter plots
+features = ['square_footage', 'overall_crime_grade', 'ES_rating', 'lot_size', 'baths_half', 
+'MS_rating', 'HS_rating', 'beds', 'baths_full', 'year_built', 'property_crime_grade']
+
+# Features to be omitted from 'features':
+# omitted_features = ['listing_special_features', 'listing_status', 'transaction_type']
+
+# Define sales prices based on models to be utilized for generating scatter plots
+models = ['price']
+
+# Calculate averages of selected features
+df_average = df[features].mean()
+
+# Calculate maximum value of entire dataframe to set limit of point plot
+max_val = df.max()
+
+# Load models indexed by zipcode
+# Includes a model, a shap_value object, and the corresponding explainer
+
+# Series of zipcode data frames. May want to save elsewhere.
+zip_dfs = pd.Series([], dtype='O')
+for zipcode in set(df.zipcode.values):
+    zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
+
+# Predictions... should probably pre-load for each model.
+df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
+df['MLR_caprate'] = 100*12*(df.rent/df.MLR_price)
+
+# Model group L1 options
+crossfilter_model_options = [
+    #{'label': 'Final Sale Price', 'value': 'price'},
+    {'label': 'Multiple Linear Regression: Price', 'value': 'MLR_price'},
+    #{'label': 'Multiple Linear Regression: Caprate', 'value': 'MLR_caprate'},
+    ]
+
+# Resolution group L2 options
+crossfilter_resolution_options = [
+    {'label': 'State', 'value': 'state'},
+    # {'label': 'County', 'value': 'county'},
+    {'label': 'Zip code', 'value': 'zipcode'},
+    ]
+########################### Page 2 - Analytics
 
 ###########################
 #Import sales data
@@ -320,6 +405,139 @@ corporate_colorscale = [
 def update_chart(value):
     ## L1 selection (dropdown value is a list!)
     return fig_ga[value]
+
+####################################################################################################
+# 00B - SCATTER PLOT UPDATE
+####################################################################################################
+# Callback for dynamic dropdown
+@app.callback(
+    dash.dependencies.Output('reso_list', 'children'),
+    dash.dependencies.Input('crossfilter-resolution', 'value')
+)
+# Create dynamic dropdown. Effects change in scatter-plot as well.
+def update_scale(resolution_dropdown):
+    new_dropdown = dcc.Dropdown(
+    list(set(df[resolution_dropdown])),
+    id='filter-dropdown',
+        value=df[resolution_dropdown].values[0]
+    )
+    return new_dropdown
+
+# First callback for SHAP values
+@app.callback(
+    dash.dependencies.Output('shap-bee', 'src'),
+    [
+        dash.dependencies.Input('filter-dropdown','value'),
+        #dash.dependencies.State('crossfilter-resolution', 'value') ## Useful if we add county as well
+        #dash.dependencies.Input('crossfilter-model', 'State')    ## need to figure out a good way to do this. Will probably use a Series of those model dataframes
+        dash.dependencies.State('shap-bee', 'src')
+    ]
+)
+# Function to update SHAP values
+def update_shap(focus, current):
+    if focus == 'Georgia':
+        return current
+    shap.summary_plot( 
+        MLR_MS_df.loc[focus,'shap_values'], 
+        show=False)
+    fig = plt.gcf()
+    buf = io.BytesIO() # in-memory files
+    plt.savefig(buf, format = "png", transparent = True)
+    plt.close()
+    data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
+    buf.close()
+    X = "data:image/png;base64,{}".format(data)
+    return X
+
+# First callback to coordinate scatterplot with feature, model, and color gradient schema
+@app.callback(
+    dash.dependencies.Output('scatter-plot', 'figure'),
+    [
+        dash.dependencies.Input('crossfilter-feature', 'value'),
+        dash.dependencies.Input('crossfilter-model', 'value'),
+        dash.dependencies.Input('gradient-scheme', 'value'),
+        dash.dependencies.Input('crossfilter-resolution', 'value'),
+        dash.dependencies.Input('filter-dropdown','value')
+    ]
+)
+# Function to update graph in response to feature, model, and color gradient schema being updated
+def update_graph(feature, model, gradient, resolution, focus):
+    # Filter dataframe 
+    df1 = df.loc[df[resolution] == focus]
+    # Define points and respective colors of scatter plot
+    cols = df1[feature].values #df[feature].values
+    hover_names = []
+    for ix, val in zip(df1.index.values, df1[feature].values):
+        hover_names.append(f'Customer {ix:03d}<br>{feature} value of {val}')
+    # Generate scatter plot
+    fig = px.scatter(
+        df1,
+        x=df1[feature],
+        y=df1[model],
+        color=cols,
+        opacity=0.8,
+        hover_name=hover_names,
+        hover_data=features,
+        template='plotly_dark',
+        color_continuous_scale=gradient,
+    )
+    # Update feature information when user hovers over data point
+    # customdata_set = list(df[features].to_numpy())
+    fig.update_traces(customdata=df1.index)
+    
+    # Layout of scatter plot
+    fig.update_layout(
+        coloraxis_colorbar={'title': f'{feature}'},
+        coloraxis_showscale=True,
+        legend_title_text='Spend',
+        height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
+        hovermode='closest',
+        template='plotly_dark'
+    )
+    # Axis settings for scatter plot
+    fig.update_xaxes(showticklabels=True)
+    fig.update_yaxes(showticklabels=True)
+
+    return fig
+
+# Function to create point plot of averages of selected features
+def create_point_plot(df, title):
+
+    fig = go.Figure(
+        data=[
+            go.Bar(name='Average', x=features, y=df_average.values, marker_color='#c178f6'),
+            go.Bar(name=title, x=features, y=df.values, marker_color='#89efbd')
+        ]
+    )
+    # Bar layout for point plot
+    fig.update_layout(
+        barmode='group',
+        height=225,
+        margin={'l': 20, 'b': 30, 'r': 10, 't': 10},
+        template='plotly_dark'
+    )
+    # Axis settings for point plot
+    fig.update_xaxes(showgrid=True)
+    fig.update_yaxes(type="log", range=[0,5])
+
+    return fig
+
+# Callback to update point plot based on user hovering over points in scatter plot
+@app.callback(
+    dash.dependencies.Output('point-plot', 'figure'),
+    [
+        # Update graph on click
+        dash.dependencies.Input('scatter-plot', 'clickData')
+        # Update graph on hover
+        # dash.dependencies.Input('scatter-plot', 'hoverData')
+    ]
+)
+
+# Function to trigger last function in response to user click point in scatter plot
+def update_point_plot(clickData):
+    index = clickData['points'][0]['customdata']
+    title = f'Customer {index}'
+    return create_point_plot(df[features].iloc[index], title)
 
 ####################################################################################################
 # 001 - L2 DYNAMIC DROPDOWN OPTIONS

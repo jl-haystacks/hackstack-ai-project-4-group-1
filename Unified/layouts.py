@@ -149,7 +149,7 @@ corporate_layout = go.Layout(
 # 000 - DATA MAPPING
 ####################################################################################################
 
-###########################
+########################### Page 1 - Maps
 # Load pre computed data
 # ga = f.load_pickle('ga_info.p')
 
@@ -159,6 +159,11 @@ PORT = 8050
 # Load necessary information for accessing source files
 mapbox_access_token = f.config['mapbox']['token']
 raw_dataset_path = f.RAW_PATH + f.config['path']['name']
+########################### Page 1 - Maps
+
+########################### Page 2 - Analytics
+
+########################### Page 2 - Analytics
 
 ###########################
 #Sales mapping
@@ -182,7 +187,7 @@ raw_dataset_path = f.RAW_PATH + f.config['path']['name']
 # 000 - IMPORT DATA
 ####################################################################################################
 
-###########################
+########################### Page 1 - Maps
 # Import map and bar chart data
 df_raw = pd.read_csv(raw_dataset_path)
 
@@ -199,6 +204,75 @@ repo_groups_l1_all = [
     {'label' : 'Zipcodes: Number of Listings', 'value' : 2},
     {'label' : 'Zipcodes: Average Listing Price', 'value' : 3},
     ]
+########################### Page 1 - Maps
+
+########################### Page 2 - Analytics
+# Read in external data into dash application
+df = df_raw
+df1 = df.copy()
+
+# Read pickle file that can be obtained by running the first half or so of MLR.ipynb
+MLR_MS_df = pd.read_pickle('data/pickle/MLR_modNshap.P')
+
+################################# Need to integrate below mask into pre-processing and take it out of here
+mask = {'F': 0,
+       'D-': 1,
+       'D': 2,
+       'D+': 3,
+       'C-': 4,
+       'C': 5,
+       'C+': 6,
+       'B-': 7,
+       'B': 8,
+       'B+': 9,
+       'A-': 10,
+       'A': 11}
+df['overall_crime_grade'] = df['overall_crime_grade'].apply(lambda row: mask[row])
+df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[row])
+#################################
+
+# Define features to be utilized for generating scatter plots
+features = ['square_footage', 'overall_crime_grade', 'ES_rating', 'lot_size', 'baths_half', 
+'MS_rating', 'HS_rating', 'beds', 'baths_full', 'year_built', 'property_crime_grade']
+
+# Features to be omitted from 'features':
+# omitted_features = ['listing_special_features', 'listing_status', 'transaction_type']
+
+# Define sales prices based on models to be utilized for generating scatter plots
+models = ['price']
+
+# Calculate averages of selected features
+df_average = df[features].mean()
+
+# Calculate maximum value of entire dataframe to set limit of point plot
+max_val = df.max()
+
+# Load models indexed by zipcode
+# Includes a model, a shap_value object, and the corresponding explainer
+
+# Series of zipcode data frames. May want to save elsewhere.
+zip_dfs = pd.Series([], dtype='O')
+for zipcode in set(df.zipcode.values):
+    zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
+
+# Predictions... should probably pre-load for each model.
+df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
+df['MLR_caprate'] = 100*12*(df.rent/df.MLR_price)
+
+# Model group L1 options
+crossfilter_model_options = [
+    #{'label': 'Final Sale Price', 'value': 'price'},
+    {'label': 'Multiple Linear Regression: Price', 'value': 'MLR_price'},
+    #{'label': 'Multiple Linear Regression: Caprate', 'value': 'MLR_caprate'},
+    ]
+
+# Resolution group L2 options
+crossfilter_resolution_options = [
+    {'label': 'State', 'value': 'state'},
+    # {'label': 'County', 'value': 'county'},
+    {'label': 'Zip code', 'value': 'zipcode'},
+    ]
+########################### Page 2 - Analytics
 
 ###########################
 #Import sales data
@@ -679,7 +753,173 @@ page2 = html.Div([
     #Row 3 : Filters
     html.Div([ # External row
 
-        html.Br()
+        html.Div([ # External 12-column
+
+            html.Div([ # Internal row
+
+                #Internal columns
+                html.Div([
+                ],
+                className = 'col-2'), # Blank 2 columns
+
+                #Filter pt 1
+                html.Div([
+
+                    html.Div([
+                        #Model group selection L1
+                        html.H5(
+                            children='Model:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(id = 'crossfilter-model',
+                                options = crossfilter_model_options,
+                                # Default value when loading
+                                value = [''],
+                                # Permit user to select only one option at a time
+                                multi = False,
+                                # Default message in dropdown before user select options
+                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
+                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                                )
+                            ],
+                            style = {'width' : '70%', 'margin-top' : '5px'}),
+                        #Resolution group selection L2
+                        html.H5(
+                            children='Resolution:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(id = 'crossfilter-resolution',
+                                options = crossfilter_resolution_options,
+                                # Default value when loading
+                                value = [''],
+                                # Permit user to select only one option at a time
+                                multi = False,
+                                # Default message in dropdown before user select options
+                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
+                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                                )
+                            ],
+                            style = {'width' : '70%', 'margin-top' : '5px'}),
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-3'), # Filter part 1
+
+                #Filter pt 2
+                html.Div([
+
+                    html.Div([
+                        #Feature selection L1
+                        html.H5(
+                            children='Feature:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(id = 'crossfilter-feature',
+                                options = [{'label': i, 'value': i} for i in features],
+                                # Default value when loading
+                                value = [''],
+                                # Permit user to select only one option at a time
+                                multi = False,
+                                # Default message in dropdown before user select options
+                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
+                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                                )
+                            ],
+                            style = {'width' : '70%', 'margin-top' : '5px'}),
+                        #Administrative unit selection L2
+                        html.H5(
+                            children='Administrative Unit:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
+                        html.Div(id = 'reso_list', children = [
+                            dcc.Dropdown(id = 'filter-dropdown',
+                                # Default value when loading
+                                value = [''],
+                                # Permit user to select only one option at a time
+                                multi = True,
+                                # Default message in dropdown before user select options
+                                # placeholder = "Select " +sales_fields['reporting_group_l2']+ " (leave blank to include all)",
+                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                                )
+                            ],
+                            style = {'width' : '70%', 'margin-top' : '5px'})
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-3'), # Filter part 2
+
+                #Filter pt 3
+                html.Div([
+
+                    html.Div([
+                        #Color gradient scheme selection L1
+                        html.H5(
+                            children='Color Gradient Scheme:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.RadioItems(
+                                id='gradient-scheme',
+                                options=[
+                                    {'label': 'Orange to Red', 'value': 'OrRd'},
+                                    {'label': 'Viridis', 'value': 'Viridis'},
+                                    {'label': 'Plasma', 'value': 'Plasma'}
+                                ],
+                                value='Plasma',
+                                labelStyle={'float': 'left', 'display': 'inline-block'}
+                                )
+                            ],
+                            style = {'width' : '70%', 'margin-top' : '5px'}),
+                        #Administrative unit selection L2
+                        # html.H5(
+                        #     children='Administrative Unit:',
+                        #     style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        # ),
+                        #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
+                        # html.Div(id = 'reso_list', children = [
+                        #     dcc.Dropdown(id = 'filter-dropdown',
+                        #         # Default value when loading
+                        #         value = [''],
+                        #         # Permit user to select only one option at a time
+                        #         multi = True,
+                        #         # Default message in dropdown before user select options
+                        #         # placeholder = "Select " +sales_fields['reporting_group_l2']+ " (leave blank to include all)",
+                        #         style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                        #         )
+                        #     ],
+                        #     style = {'width' : '70%', 'margin-top' : '5px'})
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-3'), # Filter part 3
+
+                html.Div([
+                ],
+                className = 'col-1') # Blank 2 columns
+
+
+            ],
+            className = 'row') # Internal row
+
+        ],
+        className = 'col-12',
+        style = filterdiv_borderstyling) # External 12-column
 
     ],
     className = 'row sticky-top'), # External row
@@ -692,9 +932,120 @@ page2 = html.Div([
     #Row 5 : Charts
     html.Div([ # External row
 
-        html.Br()
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
 
-    ])
+        html.Div([ # External 10-column
+
+    #         html.H2(children = "Sales Performances",
+    #                 style = {'color' : corporate_colors['white']}),
+
+    #         html.Div([ # Internal row - RECAPS
+
+    #             html.Div([],className = 'col-4'), # Empty column
+
+    #             html.Div([
+    #                 dash_table.DataTable(
+    #                     id='recap-table',
+    #                     style_header = {
+    #                         'backgroundColor': 'transparent',
+    #                         'fontFamily' : corporate_font_family,
+    #                         'font-size' : '1rem',
+    #                         'color' : corporate_colors['light-green'],
+    #                         'border': '0px transparent',
+    #                         'textAlign' : 'center'},
+    #                     style_cell = {
+    #                         'backgroundColor': 'transparent',
+    #                         'fontFamily' : corporate_font_family,
+    #                         'font-size' : '0.85rem',
+    #                         'color' : corporate_colors['white'],
+    #                         'border': '0px transparent',
+    #                         'textAlign' : 'center'},
+    #                     cell_selectable = False,
+    #                     column_selectable = False
+    #                 )
+    #             ],
+    #             className = 'col-4'),
+
+    #             html.Div([],className = 'col-4') # Empty column
+
+    #         ],
+    #         className = 'row',
+    #         style = recapdiv
+    #         ), # Internal row - RECAPS
+
+            html.Div([ # Internal row
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(
+                        id='scatter-plot',
+                        # Update graph on click
+                        clickData={'points': [{'customdata': 0}]}
+                        )
+                ],
+                className = 'col-8'),
+
+                # Chart Column
+                html.Div([
+                    html.Img(
+                        id='shap-bee', 
+                        # style = {'width': '100%', 'height': '250%'}
+                        )
+                ],
+                className = 'col-4'),
+
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-weekly-heatmap')
+    #             ],
+    #             className = 'col-4')
+
+            ],
+            className = 'row'), # Internal row
+
+            html.Div([ # Internal row
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(
+                        id='point-plot'
+                        )
+                ],
+                className = 'col-12'),
+
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-bubble-county')
+    #             ],
+    #             className = 'col-4'),
+
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(
+    #                     id='sales-count-city')
+    #             ],
+    #             className = 'col-4')
+
+            ],
+            className = 'row') # Internal row
+
+
+        ],
+        className = 'col-10',
+        style = externalgraph_colstyling), # External 10-column
+
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
+
+    ],
+    className = 'row',
+    style = externalgraph_rowstyling
+    ), # External row
 
 ])
 
