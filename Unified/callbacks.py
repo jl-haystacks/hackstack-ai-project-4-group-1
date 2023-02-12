@@ -403,12 +403,23 @@ corporate_colorscale = [
 ####################################################################################################
 @app.callback(
     dash.dependencies.Output('ga-map', 'figure'),
-	[
-     dash.dependencies.Input('reporting-groups-l1dropdown-sales', 'value')
-     ])
-def update_chart(value):
-    ## L1 selection (dropdown value is a list!)
-    return fig_ga[value]
+    dash.dependencies.Input('reporting-groups-l1dropdown-sales', 'value'),
+    dash.dependencies.State('ga-map', 'figure')
+)
+# Function to update bar chart and choropleth map (DOES NOT WORK)
+def updateGraphCB(value, fig):
+    # filter traces...
+    fig = go.Figure(fig).update_traces(visible=False)
+    fig.update_traces(visible = True, selector= {"meta" : value})
+    return fig
+# Function to update bar chart and choropleth map (DOES NOT WORK)
+# def update_chart(value, fig):
+#     ## L1 selection (dropdown value is a list!)
+#     if value == 0: fig['layout'] = {'visible': [True, False, False, False]}
+#     elif value == 1: fig['layout'] = {'visible': [False, True, False, False]}
+#     elif value == 2: fig['layout'] = {'visible': [False, False, True, False]}
+#     elif value == 3: fig['layout'] = {'visible': [False, False, False, True]}
+#     return fig
 
 ####################################################################################################
 # 00B - SCATTER PLOT UPDATE

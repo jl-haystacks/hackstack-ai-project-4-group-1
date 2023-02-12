@@ -879,7 +879,7 @@ page2 = html.Div([
                                     {'label': 'Plasma', 'value': 'Plasma'}
                                 ],
                                 value='Plasma',
-                                labelStyle={'float': 'left', 'display': 'inline-block'}
+                                labelStyle={'float': 'left', 'display': 'inline-block', 'margin-right': 10}
                                 )
                             ],
                             style = {'width' : '70%', 'margin-top' : '5px'}),
