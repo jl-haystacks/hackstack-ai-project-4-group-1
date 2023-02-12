@@ -243,8 +243,11 @@ df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[r
 #################################
 
 # Define features to be utilized for generating scatter plots
-features = ['square_footage', 'overall_crime_grade', 'ES_rating', 'lot_size', 'baths_half', 
-'MS_rating', 'HS_rating', 'beds', 'baths_full', 'year_built', 'property_crime_grade']
+
+features = MLR_MS_df.loc[30002, 'model'].feature_names_in_
+
+# features = ['square_footage', 'overall_crime_grade', 'ES_rating', 'lot_size', 'baths_half', 
+# 'MS_rating', 'HS_rating', 'beds', 'baths_full', 'year_built', 'property_crime_grade']
 
 # Features to be omitted from 'features':
 # omitted_features = ['listing_special_features', 'listing_status', 'transaction_type']
@@ -267,7 +270,8 @@ for zipcode in set(df.zipcode.values):
     zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
 
 # Predictions... should probably pre-load for each model.
-df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
+df['MLR_price'] = MLR_MS_df.loc[30002, 'model'].predict(df[features])
+# df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
 df['MLR_caprate'] = 100*12*(df.rent/df.MLR_price)
 
 # Model group L1 options
@@ -435,14 +439,17 @@ def update_scale(resolution_dropdown):
 )
 # Function to update SHAP values
 def update_shap(focus, current):
+    plt.style.use("dark_background")
     if focus == 'Georgia':
         return current
     shap.summary_plot( 
         MLR_MS_df.loc[focus,'shap_values'], 
         show=False)
     fig = plt.gcf()
+    plt.tick_params(colors = 'white')
+    plt.ticklabel_format(axis='x', scilimits=[-3, 3])
     buf = io.BytesIO() # in-memory files
-    plt.savefig(buf, format = "png", transparent = True)
+    plt.savefig(buf, format = "png")
     plt.close()
     data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
     buf.close()
@@ -492,7 +499,9 @@ def update_graph(feature, model, gradient, resolution, focus):
         legend_title_text='Spend',
         height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
         hovermode='closest',
-        template='plotly_dark'
+        template='plotly_dark',
+        plot_bgcolor='black',
+        paper_bgcolor = 'black',
     )
     # Axis settings for scatter plot
     fig.update_xaxes(showticklabels=True)
@@ -514,7 +523,9 @@ def create_point_plot(df, title):
         barmode='group',
         height=225,
         margin={'l': 20, 'b': 30, 'r': 10, 't': 10},
-        template='plotly_dark'
+        template='plotly_dark',
+        plot_bgcolor='black',
+        paper_bgcolor = 'black'
     )
     # Axis settings for point plot
     fig.update_xaxes(showgrid=True)
