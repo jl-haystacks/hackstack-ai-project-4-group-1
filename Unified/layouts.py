@@ -256,7 +256,8 @@ for zipcode in set(df.zipcode.values):
     zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
 
 # Predictions... should probably pre-load for each model.
-df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
+df['MLR_price'] = MLR_MS_df.loc[30002, 'model'].predict(df[features])
+# df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
 df['MLR_caprate'] = 100*12*(df.rent/df.MLR_price)
 
 # Model group L1 options
@@ -991,7 +992,7 @@ page2 = html.Div([
                 html.Div([
                     html.Img(
                         id='shap-bee', 
-                        # style = {'width': '100%', 'height': '250%'}
+                        style = {'width': '100%', 'height': '100%'}
                         )
                 ],
                 className = 'col-4'),
