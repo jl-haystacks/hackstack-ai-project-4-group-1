@@ -449,7 +449,7 @@ def update_shap(focus, current):
     plt.tick_params(colors = 'white')
     plt.ticklabel_format(axis='x', scilimits=[-3, 3])
     buf = io.BytesIO() # in-memory files
-    plt.savefig(buf, format = "png")
+    plt.savefig(buf, format = "png", transparent = True)
     plt.close()
     data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
     buf.close()
@@ -500,8 +500,8 @@ def update_graph(feature, model, gradient, resolution, focus):
         height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
         hovermode='closest',
         template='plotly_dark',
-        plot_bgcolor='black',
-        paper_bgcolor = 'black',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor = 'rgba(0,0,0,0)',
     )
     # Axis settings for scatter plot
     fig.update_xaxes(showticklabels=True)
@@ -524,8 +524,8 @@ def create_point_plot(df, title):
         height=225,
         margin={'l': 20, 'b': 30, 'r': 10, 't': 10},
         template='plotly_dark',
-        plot_bgcolor='black',
-        paper_bgcolor = 'black'
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor = 'rgba(0,0,0,0)'
     )
     # Axis settings for point plot
     fig.update_xaxes(showgrid=True)
