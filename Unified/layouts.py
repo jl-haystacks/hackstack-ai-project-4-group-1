@@ -212,9 +212,10 @@ df = df_raw
 df1 = df.copy()
 
 # Read pickle file that can be obtained by running the first half or so of MLR.ipynb
-MLR_MS_df = pd.read_pickle('data/pickle/MLR_modNshap.P')
+MS_ser = pd.read_pickle('data/pickle/modNshap.P')
 
 ################################# Need to integrate below mask into pre-processing and take it out of here
+
 mask = {'F': 0,
        'D-': 1,
        'D': 2,
@@ -231,9 +232,25 @@ df['overall_crime_grade'] = df['overall_crime_grade'].apply(lambda row: mask[row
 df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[row])
 #################################
 
+# Series of zipcode data frames. May want to save elsewhere.
+zip_dfs = pd.Series([], dtype='O')
+for zipcode in set(df.zipcode.values):
+    zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
+zip_dfs['ALL'] = df.copy()
+
+## Attach model predictions and scores to zip_dfs dataframes.
+for zdf in zip_dfs:
+    for model in MS_ser.index:
+        features = MS_ser[model].loc[30002, 'model'].feature_names_in_
+        zdf[model+'_price'] = MS_ser[model].loc[30002, 'model'].predict(zdf[features])
+        zdf[model+'_caprate'] = 100*12*(zdf['rent'])/(zdf[model+'_price'])-1
+        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
+
+
 # Define features to be utilized for generating scatter plots
-features = ['square_footage', 'overall_crime_grade', 'ES_rating', 'lot_size', 'baths_half', 
-'MS_rating', 'HS_rating', 'beds', 'baths_full', 'year_built', 'property_crime_grade']
+house_features = ['square_footage', 'beds', 'lot_size', 'baths_full', 'baths_half'] 
+regional_features = ['overall_crime_grade', 'property_crime_grade', 'ES_rating', 'MS_rating', 'HS_rating']
+features = house_features+regional_features
 
 # Features to be omitted from 'features':
 # omitted_features = ['listing_special_features', 'listing_status', 'transaction_type']
@@ -247,72 +264,21 @@ df_average = df[features].mean()
 # Calculate maximum value of entire dataframe to set limit of point plot
 max_val = df.max()
 
-# Load models indexed by zipcode
-# Includes a model, a shap_value object, and the corresponding explainer
-
-# Series of zipcode data frames. May want to save elsewhere.
-zip_dfs = pd.Series([], dtype='O')
-for zipcode in set(df.zipcode.values):
-    zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
-
-# Predictions... should probably pre-load for each model.
-df['MLR_price'] = MLR_MS_df.loc[30002, 'model'].predict(df[features])
-# df['MLR_price'] = df.apply(lambda row: MLR_MS_df.loc[row.zipcode,'model'].predict(row[features].to_numpy().reshape(1,-1)).item(), axis=1)
-df['MLR_caprate'] = 100*12*(df.rent/df.MLR_price)
 
 # Model group L1 options
 crossfilter_model_options = [
-    #{'label': 'Final Sale Price', 'value': 'price'},
-    {'label': 'Multiple Linear Regression: Price', 'value': 'MLR_price'},
-    #{'label': 'Multiple Linear Regression: Caprate', 'value': 'MLR_caprate'},
+    {'label': 'Multiple Linear Regression, all features', 'value': 'MLR_full'},
+    {'label': 'Multiple Linear Regression house features', 'value': 'MLR_house'},
+    {'label': 'Multiple Linear Regression: regional features', 'value': 'MLR_regional'}
     ]
 
 # Resolution group L2 options
 crossfilter_resolution_options = [
-    {'label': 'State', 'value': 'state'},
+    {'label': 'State', 'value': 'ALL'},
     # {'label': 'County', 'value': 'county'},
     {'label': 'Zip code', 'value': 'zipcode'},
     ]
 ########################### Page 2 - Analytics
-
-###########################
-#Import sales data
-# xls = pd.ExcelFile(sales_filepath)
-# sales_import=xls.parse('Static')
-
-#Format date field
-# sales_import[sales_fields['date']] = pd.to_datetime(sales_import[sales_fields['date']], format=sales_formats[sales_fields['date']])
-# sales_import['date_2'] = sales_import[sales_fields['date']].dt.date
-# min_dt = sales_import['date_2'].min()
-# min_dt_str = str(min_dt)
-# max_dt = sales_import['date_2'].max()
-# max_dt_str = str(max_dt)
-
-#Create L1 dropdown options
-# repo_groups_l1 = sales_import[sales_fields['reporting_group_l1']].unique()
-# repo_groups_l1_all_2 = [
-#     {'label' : k, 'value' : k} for k in sorted(repo_groups_l1)
-#     ]
-# repo_groups_l1_all_1 = [{'label' : '(Select All)', 'value' : 'All'}]
-# repo_groups_l1_all = repo_groups_l1_all_1 + repo_groups_l1_all_2
-
-#Initialise L2 dropdown options
-# repo_groups_l2 = sales_import[sales_fields['reporting_group_l2']].unique()
-# repo_groups_l2_all_2 = [
-#     {'label' : k, 'value' : k} for k in sorted(repo_groups_l2)
-#     ]
-# repo_groups_l2_all_1 = [{'label' : '(Select All)', 'value' : 'All'}]
-# repo_groups_l2_all = repo_groups_l2_all_1 + repo_groups_l2_all_2
-# repo_groups_l1_l2 = {}
-# for l1 in repo_groups_l1:
-#     l2 = sales_import[sales_import[sales_fields['reporting_group_l1']] == l1][sales_fields['reporting_group_l2']].unique()
-#     repo_groups_l1_l2[l1] = l2
-
-################################################################################################################################################## SET UP END
-
-####################################################################################################
-# 000 - DEFINE REUSABLE COMPONENTS AS FUNCTIONS
-####################################################################################################
 
 #####################
 # Header with logo
@@ -517,34 +483,6 @@ page1 = html.Div([
 
                 #Filter pt 1
                 html.Div([
-
-                    # html.Div([
-                    #     html.H5(
-                    #         children='Filters by Date:',
-                    #         style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                    #     ),
-                    #     #Date range picker
-                    #     html.Div(['Select a date range: ',
-                    #         dcc.DatePickerRange(
-                    #             id='date-picker-sales',
-                    #             start_date = min_dt_str,
-                    #             end_date = max_dt_str,
-                    #             min_date_allowed = min_dt,
-                    #             max_date_allowed = max_dt,
-                    #             start_date_placeholder_text = 'Start date',
-                    #             display_format='DD-MMM-YYYY',
-                    #             first_day_of_week = 1,
-                    #             end_date_placeholder_text = 'End date',
-                    #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'})
-                    #     ], style = {'margin-top' : '5px'}
-                    #     )
-
-                    # ],
-                    # style = {'margin-top' : '10px',
-                    #         'margin-bottom' : '5px',
-                    #         'text-align' : 'left',
-                    #         'paddingLeft': 5})
-
                 ],
                 className = 'col-4'), # Filter part 1
 
@@ -570,17 +508,7 @@ page1 = html.Div([
                                 )
                             ],
                             style = {'width' : '70%', 'margin-top' : '5px'}),
-    #                     #Reporting group selection l2
-    #                     html.Div([
-    #                         dcc.Dropdown(id = 'reporting-groups-l2dropdown-sales',
-    #                             options = repo_groups_l2_all,
-    #                             value = [''],
-    #                             multi = True,
-    #                             placeholder = "Select " +sales_fields['reporting_group_l2']+ " (leave blank to include all)",
-    #                             style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
-    #                             )
-    #                         ],
-    #                         style = {'width' : '70%', 'margin-top' : '5px'})
+    
                     ],
                     style = {'margin-top' : '10px',
                             'margin-bottom' : '5px',
@@ -630,96 +558,6 @@ page1 = html.Div([
                     ),       
                 ], 
             ), 
-
-    #         html.H2(children = "Sales Performances",
-    #                 style = {'color' : corporate_colors['white']}),
-
-    #         html.Div([ # Internal row - RECAPS
-
-    #             html.Div([],className = 'col-4'), # Empty column
-
-    #             html.Div([
-    #                 dash_table.DataTable(
-    #                     id='recap-table',
-    #                     style_header = {
-    #                         'backgroundColor': 'transparent',
-    #                         'fontFamily' : corporate_font_family,
-    #                         'font-size' : '1rem',
-    #                         'color' : corporate_colors['light-green'],
-    #                         'border': '0px transparent',
-    #                         'textAlign' : 'center'},
-    #                     style_cell = {
-    #                         'backgroundColor': 'transparent',
-    #                         'fontFamily' : corporate_font_family,
-    #                         'font-size' : '0.85rem',
-    #                         'color' : corporate_colors['white'],
-    #                         'border': '0px transparent',
-    #                         'textAlign' : 'center'},
-    #                     cell_selectable = False,
-    #                     column_selectable = False
-    #                 )
-    #             ],
-    #             className = 'col-4'),
-
-    #             html.Div([],className = 'col-4') # Empty column
-
-    #         ],
-    #         className = 'row',
-    #         style = recapdiv
-    #         ), # Internal row - RECAPS
-
-    #         html.Div([ # Internal row
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-count-day')
-    #             ],
-    #             className = 'col-4'),
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-count-month')
-    #             ],
-    #             className = 'col-4'),
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-weekly-heatmap')
-    #             ],
-    #             className = 'col-4')
-
-    #         ],
-    #         className = 'row'), # Internal row
-
-    #         html.Div([ # Internal row
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-count-country')
-    #             ],
-    #             className = 'col-4'),
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-bubble-county')
-    #             ],
-    #             className = 'col-4'),
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-count-city')
-    #             ],
-    #             className = 'col-4')
-
-    #         ],
-    #         className = 'row') # Internal row
-
 
         ],
         className = 'col-10',
@@ -776,13 +614,23 @@ page2 = html.Div([
                             dcc.Dropdown(id = 'crossfilter-model',
                                 options = crossfilter_model_options,
                                 # Default value when loading
-                                value = [''],
+                                value = 'MLR_full',
                                 # Permit user to select only one option at a time
                                 multi = False,
                                 # Default message in dropdown before user select options
                                 # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
                                 style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
-                                )
+                                ),
+                            dcc.Dropdown(id = 'select-target',
+                                options = [{'label': 'Price', 'value':'price'},
+                                    {'label': 'Cap rate', 'value':'caprate'}
+                                    ],
+                                value = 'price',
+                                multi = False,
+                                # Default message in dropdown before user select options
+                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
+                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                                ),
                             ],
                             style = {'width' : '70%', 'margin-top' : '5px'}),
                         #Resolution group selection L2
@@ -794,7 +642,7 @@ page2 = html.Div([
                             dcc.Dropdown(id = 'crossfilter-resolution',
                                 options = crossfilter_resolution_options,
                                 # Default value when loading
-                                value = [''],
+                                value = ['ALL'],
                                 # Permit user to select only one option at a time
                                 multi = False,
                                 # Default message in dropdown before user select options
@@ -816,34 +664,27 @@ page2 = html.Div([
                 html.Div([
 
                     html.Div([
-                        #Feature selection L1
                         html.H5(
                             children='Feature:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
-                        html.Div([
+                        html.Div(id = 'feat_list', children = [
                             dcc.Dropdown(id = 'crossfilter-feature',
-                                options = [{'label': i, 'value': i} for i in features],
-                                # Default value when loading
-                                value = [''],
-                                # Permit user to select only one option at a time
-                                multi = False,
-                                # Default message in dropdown before user select options
-                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
-                                style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                              
+                                style = {'font-size': '1d3px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 )
                             ],
                             style = {'width' : '70%', 'margin-top' : '5px'}),
-                        #Administrative unit selection L2
+                        #
                         html.H5(
-                            children='Administrative Unit:',
+                            children='Region:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
                         html.Div(id = 'reso_list', children = [
                             dcc.Dropdown(id = 'filter-dropdown',
                                 # Default value when loading
-                                value = [''],
+                               
                                 # Permit user to select only one option at a time
                                 multi = True,
                                 # Default message in dropdown before user select options
@@ -883,24 +724,6 @@ page2 = html.Div([
                                 )
                             ],
                             style = {'width' : '70%', 'margin-top' : '5px'}),
-                        #Administrative unit selection L2
-                        # html.H5(
-                        #     children='Administrative Unit:',
-                        #     style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        # ),
-                        #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
-                        # html.Div(id = 'reso_list', children = [
-                        #     dcc.Dropdown(id = 'filter-dropdown',
-                        #         # Default value when loading
-                        #         value = [''],
-                        #         # Permit user to select only one option at a time
-                        #         multi = True,
-                        #         # Default message in dropdown before user select options
-                        #         # placeholder = "Select " +sales_fields['reporting_group_l2']+ " (leave blank to include all)",
-                        #         style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
-                        #         )
-                        #     ],
-                        #     style = {'width' : '70%', 'margin-top' : '5px'})
                     ],
                     style = {'margin-top' : '10px',
                             'margin-bottom' : '5px',
