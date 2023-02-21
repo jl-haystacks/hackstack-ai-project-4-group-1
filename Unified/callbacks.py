@@ -221,22 +221,25 @@ mask = {'F': 0,
 df['overall_crime_grade'] = df['overall_crime_grade'].apply(lambda row: mask[row])
 df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[row])
 #################################
-
+all_dfs = pd.read_pickle('data/pickle/preloading.P')
 # Series of zipcode data frames. May want to save elsewhere.
 
-zip_dfs = pd.Series([], dtype='O')
-for zipcode in set(df.zipcode.values):
-    zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
-zip_dfs['ALL'] = df.copy()
+#all_dfs = pd.Series([], dtype='O')
+#for zipcode in set(df.zipcode.values):
+#    all_dfs[zipcode] = df.loc[df.zipcode == zipcode]
+#all_dfs['Georgia'] = df.copy()
+#for county in set(df.county.values):
+#    all_dfs[county] = df.loc[df.county == county]
 
-## Attach model predictions and scores to zip_dfs dataframes.
+## Attach model predictions and scores to all_dfs dataframes.
 
-for zdf in zip_dfs:
-    for model in MS_ser.index:
-        features = MS_ser[model].loc[30002, 'model'].feature_names_in_
-        zdf[model+'_price'] = MS_ser[model].loc[30002, 'model'].predict(zdf[features])
-        zdf[model+'_caprate'] = 100*12*(zdf['rent'])/(zdf[model+'_price'])-1
-        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
+#for zdf in all_dfs:
+#    for model in MS_ser.index:
+#        features = MS_ser[model].loc[30002, 'model'].feature_names_in_
+#        zdf[model+'_price'] = MS_ser[model].loc[30002, 'model'].predict(zdf[features])
+#        zdf[model+'_caprate'] = 100*12*(zdf['rent'])/(zdf[model+'_price'])-1
+#        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
+#        zdf[model+'_differential'] = zdf[model+'_price']-zdf['price']
 
 
 
@@ -279,9 +282,32 @@ crossfilter_resolution_options = [
     {'label': 'Zip code', 'value': 'zipcode'},
     ]
 
+### Holds model-specific statistics, should probably pre-load
+
+model_stats = pd.Series([], dtype='O')
+for model in MS_ser.index:
+    model_stats[model] = pd.DataFrame() 
+    for focus in all_dfs.index:
+        X = pd.DataFrame(all_dfs[focus].agg(
+            {model+'_price': ['mean', 'max'], 
+             model+'_caprate': ['mean', 'max'],
+             model+'_differential': ['mean', 'max'],
+             model+'_score':['mean', 'max'], ## These are the same, but can't rename without
+            }, axis=0
+        ).unstack(level=1)).T
+        X.columns = ['avg_price', 'max_price', 'avg_caprate', 'max_caprate', 'avg_differential', 'max_differential', 'avg_score', 'max_score']
+        X.index = pd.Index([focus])
+        model_stats[model] = model_stats[model].append(X)
+
+reg_idx=pd.Series(dtype='O')  ## Masks above to only have zipcodes
+for mod in model_stats.index:
+    reg_idx[mod] = pd.Series(model_stats[mod].index).astype('str').str.isnumeric()
+    reg_idx[mod].index = model_stats[mod].index
+
 ####################################################################################################
 # 000 - DEFINE ADDITIONAL FUNCTIONS
 ####################################################################################################
+
 def group_wavg(df, gr_by_cols, weight, value):
     """This function returns a df grouped by the gr_by_cols and calculate the weighted avg based
     on the entries in the weight and value lists"""
@@ -406,13 +432,6 @@ def update_feature_list(which_model):
 # Create dynamic dropdown. Effects change in scatter-plot as well.
 
 def update_scale(resolution_dropdown):
-    if resolution_dropdown == 'ALL':
-        single_dd = dcc.Dropdown(
-            options = [{'label': 'All', 'value': 'ALL'}],
-            id = 'filter-dropdown',
-            value = 'ALL'
-        )
-        return single_dd
     new_dropdown = dcc.Dropdown(
     list(set(df[resolution_dropdown])),
     id='filter-dropdown',
@@ -465,15 +484,15 @@ def update_shap(focus, which_model):
 
 def update_graph(feature, model, gradient, resolution, focus, target):
     # Define points and respective colors of scatter plot
-    cols = zip_dfs[focus][feature].values #df[feature].values
+    cols = all_dfs[focus][feature].values #df[feature].values
     hover_names = []
-    for ix, val in zip(zip_dfs[focus].index.values, zip_dfs[focus][feature].values):
+    for ix, val in zip(all_dfs[focus].index.values, all_dfs[focus][feature].values):
         hover_names.append(f'Customer {ix:03d}<br>{feature} value of {val}')
     # Generate scatter plot
     fig = px.scatter(
-        zip_dfs[focus],
-        x=zip_dfs[focus][feature],
-        y=zip_dfs[focus][str(model)+'_'+str(target)],
+        all_dfs[focus],
+        x=all_dfs[focus][feature],
+        y=all_dfs[focus][str(model)+'_'+str(target)],
         color=cols,
         opacity=0.8,
         hover_name=hover_names,
@@ -483,7 +502,7 @@ def update_graph(feature, model, gradient, resolution, focus, target):
     )
     # Update feature information when user hovers over data point
     # customdata_set = list(df[features].to_numpy())
-    fig.update_traces(customdata=zip_dfs[focus].index)
+    fig.update_traces(customdata=all_dfs[focus].index)
     if target == 'price':
         fig.update_layout(yaxis_title='Price')
     else:
@@ -547,3 +566,103 @@ def update_point_plot(clickData):
     index = clickData['points'][0]['customdata']
     title = f'Customer {index}'
     return create_point_plot(df[features].iloc[index], title)
+
+@app.callback(
+    dash.dependencies.Output('model-accuracy-statement', 'children'),
+    dash.dependencies.Input('acc-cutoff', 'value')
+)
+
+def display_accuracy(value):
+    return html.H6(f'Minimum model R-squared: {value}', style = {'color': corporate_colors['superdark-green']})
+
+@app.callback(
+    dash.dependencies.Output('top-bars', 'figure'),
+    [
+        dash.dependencies.Input('acc-cutoff', 'value'),
+        dash.dependencies.Input('choose-model','value'),
+        dash.dependencies.Input('granularity', 'value'),
+        dash.dependencies.Input('bar-options', 'value')
+    ]
+)
+
+def update_top_bars(cutoff, model, reso, selection):
+    if reso == 'zipcode':
+        allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & (reg_idx[model])].sort_values(by='max_score', ascending = False)
+    else:
+        allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & ~((reg_idx[model]) | (model_stats[model].index == 'Georgia'))].sort_values(by='max_score', ascending = False)
+    top5 = allowed_regions.sort_values(by=selection, ascending = False).iloc[0:5].reset_index() 
+
+    fig = px.histogram(
+        top5,
+        x='index',
+        y=selection,
+        opacity=0.8,
+    )
+    fig.update_xaxes(type='category')
+    # Update feature information when user hovers over data point
+    # customdata_set = list(df[features].to_numpy())
+    #fig.update_traces(customdata=all_dfs[focus].index)
+    #if target == 'price':
+    #    fig.update_layout(yaxis_title='Price')
+    #else:
+    #    fig.update_layout(yaxis_title='Cap rate')
+    # Layout of scatter plot
+    fig.update_layout(
+        #coloraxis_colorbar={'title': f'{selection}'},
+        #coloraxis_showscale=True,
+        #legend_title_text='Spend',
+        height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
+        #hovermode='closest',
+
+        template='plotly_dark',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor = 'rgba(0,0,0,0)',
+    )
+
+
+    # Axis settings for scatter plot
+    fig.update_xaxes(showticklabels=True)
+    fig.update_yaxes(showticklabels=True)
+
+    return fig
+
+@app.callback(
+    dash.dependencies.Output('lower-bars', 'figure'),
+    [
+        dash.dependencies.Input('acc-cutoff', 'value'),
+        dash.dependencies.Input('choose-model','value'),
+        dash.dependencies.Input('granularity', 'value'),
+        dash.dependencies.Input('bar-options', 'value')
+    ]
+)
+def first_lower_bars(cutoff, model, reso, selection):
+    if reso == 'zipcode':
+        allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & (reg_idx[model])].sort_values(by='max_score', ascending = False)
+    else:
+        allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & ~((reg_idx[model]) | (model_stats[model].index == 'Georgia'))].sort_values(by='max_score', ascending = False)
+
+    top10 = all_dfs['Georgia'][all_dfs['Georgia'][reso].isin(allowed_regions.index)].sort_values(by=model+'_'+selection[4:], ascending = False).iloc[0:10] ## top 10 individuals within remaining zip codes/counties. Click event will specifify zip codes/counties
+    top10 = top10.reset_index()
+    fig = px.histogram(
+        top10,
+        x=reso, ## county or zip 
+        y=model+'_'+selection[4:], #omit avg_ or max_
+        opacity=0.8,
+    )
+    fig.update_xaxes(type='category')
+
+    fig.update_layout(
+
+        height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
+
+        template='plotly_dark',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor = 'rgba(0,0,0,0)',
+    )
+
+
+    # Axis settings for scatter plot
+    fig.update_xaxes(showticklabels=True)
+    fig.update_yaxes(showticklabels=True)
+
+    return fig

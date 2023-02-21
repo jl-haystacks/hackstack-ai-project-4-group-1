@@ -159,29 +159,7 @@ PORT = 8050
 # Load necessary information for accessing source files
 mapbox_access_token = f.config['mapbox']['token']
 raw_dataset_path = f.RAW_PATH + f.config['path']['name']
-########################### Page 1 - Maps
 
-########################### Page 2 - Analytics
-
-########################### Page 2 - Analytics
-
-###########################
-#Sales mapping
-# sales_filepath = 'data/datasource.xlsx'
-
-# sales_fields = {
-#     'date' : 'Date',
-#     'reporting_group_l1' : 'Country',
-#     'reporting_group_l2' : 'City',
-#     'sales' : 'Sales Units',
-#     'revenues' : 'Revenues',
-#     'sales target' : 'Sales Targets',
-#     'rev target' : 'Rev Targets',
-#     'num clients' : 'nClients'
-#     }
-# sales_formats = {
-#     sales_fields['date'] : '%d/%m/%Y'
-# }
 
 ####################################################################################################
 # 000 - IMPORT DATA
@@ -233,21 +211,26 @@ df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[r
 #################################
 
 # Series of zipcode data frames. May want to save elsewhere.
-zip_dfs = pd.Series([], dtype='O')
-for zipcode in set(df.zipcode.values):
-    zip_dfs[zipcode] = df.loc[df.zipcode == zipcode]
-zip_dfs['ALL'] = df.copy()
+all_dfs = pd.read_pickle('data/pickle/preloading.P')
+#all_dfs = pd.Series([], dtype='O')
+#for zipcode in set(df.zipcode.values):
+#    all_dfs[zipcode] = df.loc[df.zipcode == zipcode]
+#all_dfs['Georgia'] = df.copy()
+#for county in set(df.county.values):
+#    all_dfs[county] = df.loc[df.county == county]
 
-## Attach model predictions and scores to zip_dfs dataframes.
-for zdf in zip_dfs:
-    for model in MS_ser.index:
-        features = MS_ser[model].loc[30002, 'model'].feature_names_in_
-        zdf[model+'_price'] = MS_ser[model].loc[30002, 'model'].predict(zdf[features])
-        zdf[model+'_caprate'] = 100*12*(zdf['rent'])/(zdf[model+'_price'])-1
-        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
+## Attach model predictions and scores to all_dfs dataframes.
 
+#for zdf in all_dfs:
+#    for model in MS_ser.index:
+#        features = MS_ser[model].loc[30002, 'model'].feature_names_in_
+#        zdf[model+'_price'] = MS_ser[model].loc[30002, 'model'].predict(zdf[features])
+#        zdf[model+'_caprate'] = 100*12*(zdf['rent'])/(zdf[model+'_price'])-1
+#        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
+#        zdf[model+'_differential'] = zdf[model+'_price']-zdf['price']
 
 # Define features to be utilized for generating scatter plots
+
 house_features = ['square_footage', 'beds', 'lot_size', 'baths_full', 'baths_half'] 
 regional_features = ['overall_crime_grade', 'property_crime_grade', 'ES_rating', 'MS_rating', 'HS_rating']
 features = house_features+regional_features
@@ -267,15 +250,15 @@ max_val = df.max()
 
 # Model group L1 options
 crossfilter_model_options = [
-    {'label': 'Multiple Linear Regression, all features', 'value': 'MLR_full'},
-    {'label': 'Multiple Linear Regression house features', 'value': 'MLR_house'},
+    {'label': 'Multiple Linear Regression: all features', 'value': 'MLR_full'},
+    {'label': 'Multiple Linear Regression: house features', 'value': 'MLR_house'},
     {'label': 'Multiple Linear Regression: regional features', 'value': 'MLR_regional'}
     ]
 
 # Resolution group L2 options
 crossfilter_resolution_options = [
-    {'label': 'State', 'value': 'ALL'},
-    # {'label': 'County', 'value': 'county'},
+    {'label': 'State', 'value': 'state'},
+    {'label': 'County', 'value': 'county'},
     {'label': 'Zip code', 'value': 'zipcode'},
     ]
 ########################### Page 2 - Analytics
@@ -642,7 +625,7 @@ page2 = html.Div([
                             dcc.Dropdown(id = 'crossfilter-resolution',
                                 options = crossfilter_resolution_options,
                                 # Default value when loading
-                                value = ['ALL'],
+                                value = ['state'],
                                 # Permit user to select only one option at a time
                                 multi = False,
                                 # Default message in dropdown before user select options
@@ -683,12 +666,6 @@ page2 = html.Div([
                         #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
                         html.Div(id = 'reso_list', children = [
                             dcc.Dropdown(id = 'filter-dropdown',
-                                # Default value when loading
-                               
-                                # Permit user to select only one option at a time
-                                multi = True,
-                                # Default message in dropdown before user select options
-                                # placeholder = "Select " +sales_fields['reporting_group_l2']+ " (leave blank to include all)",
                                 style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 )
                             ],
@@ -760,44 +737,7 @@ page2 = html.Div([
         ],
         className = 'col-1'), # Blank 1 column
 
-        html.Div([ # External 10-column
-
-    #         html.H2(children = "Sales Performances",
-    #                 style = {'color' : corporate_colors['white']}),
-
-    #         html.Div([ # Internal row - RECAPS
-
-    #             html.Div([],className = 'col-4'), # Empty column
-
-    #             html.Div([
-    #                 dash_table.DataTable(
-    #                     id='recap-table',
-    #                     style_header = {
-    #                         'backgroundColor': 'transparent',
-    #                         'fontFamily' : corporate_font_family,
-    #                         'font-size' : '1rem',
-    #                         'color' : corporate_colors['light-green'],
-    #                         'border': '0px transparent',
-    #                         'textAlign' : 'center'},
-    #                     style_cell = {
-    #                         'backgroundColor': 'transparent',
-    #                         'fontFamily' : corporate_font_family,
-    #                         'font-size' : '0.85rem',
-    #                         'color' : corporate_colors['white'],
-    #                         'border': '0px transparent',
-    #                         'textAlign' : 'center'},
-    #                     cell_selectable = False,
-    #                     column_selectable = False
-    #                 )
-    #             ],
-    #             className = 'col-4'),
-
-    #             html.Div([],className = 'col-4') # Empty column
-
-    #         ],
-    #         className = 'row',
-    #         style = recapdiv
-    #         ), # Internal row - RECAPS
+        html.Div([ 
 
             html.Div([ # Internal row
 
@@ -806,7 +746,8 @@ page2 = html.Div([
                     dcc.Graph(
                         id='scatter-plot',
                         # Update graph on click
-                        clickData={'points': [{'customdata': 0}]}
+                        clickData={'points': [{'customdata': 0}]},
+                        style = {'width': '90%'}
                         )
                 ],
                 className = 'col-8'),
@@ -815,17 +756,10 @@ page2 = html.Div([
                 html.Div([
                     html.Img(
                         id='shap-bee', 
-                        style = {'width': '100%', 'height': '100%'}
+                        style = {'width': '100%', 'height': '80%'}
                         )
                 ],
                 className = 'col-4'),
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-weekly-heatmap')
-    #             ],
-    #             className = 'col-4')
 
             ],
             className = 'row'), # Internal row
@@ -839,20 +773,6 @@ page2 = html.Div([
                         )
                 ],
                 className = 'col-12'),
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-bubble-county')
-    #             ],
-    #             className = 'col-4'),
-
-    #             # Chart Column
-    #             html.Div([
-    #                 dcc.Graph(
-    #                     id='sales-count-city')
-    #             ],
-    #             className = 'col-4')
 
             ],
             className = 'row') # Internal row
@@ -890,11 +810,143 @@ page3 = html.Div([
     #####################
     #Row 3 : Filters
     html.Div([ # External row
-
-        html.Br()
-
-    ],
-    className = 'row sticky-top'), # External row
+        html.Div([ # External 12-col row
+            html.Div([
+                html.Div([], className='col-2'),
+                html.Div([ ## Slider, radio, model
+                    html.Div([
+                        html.Div([
+                            html.Div(
+                                id = 'model-accuracy-statement',
+                                children = [],
+                                style={'text-align':'center'}
+                            ),
+                            dcc.Slider(
+                                id='acc-cutoff',
+                                min=0,
+                                max=1,
+                                step=0.01,
+                                value=0,
+                                marks = {0: {'label': '0', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.1 : {'label': '0.1', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.2 : {'label':'0.2', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.3 : {'label':'0.3', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.4 : {'label':'0.4', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.5 : {'label':'0.5', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.6 : {'label':'0.6', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.7 : {'label':'0.7', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.8 : {'label':'0.8', 'style':{'color':corporate_colors['superdark-green']}},
+                                        0.9: {'label':'0.9', 'style':{'color':corporate_colors['superdark-green']}},
+                                        1: {'label':'1', 'style':{'color':corporate_colors['superdark-green']}}
+                                },
+                            ),
+                        ], style ={
+                                'font-size': '11px',
+                                'color' : corporate_colors['superdark-green'],
+                                'white-space': 'nowrap',
+                                'text-overflow': 'ellipsis',
+                                'margin-top': '5px',
+                                'display':'inline-block',
+                                'width' : '40%'
+                                }),
+                        html.Div([
+                            html.Div([html.H6(
+                                'Select model',
+                                style = {'color': corporate_colors['superdark-green']})]),
+                            dcc.Dropdown(
+                                id = 'choose-model',
+                                options = [
+                                    {'label': 'Multiple Linear Regression: All Features', 'value': 'MLR_full'},
+                                    {'label': 'Multiple Linear Regression: House Features', 'value': 'MLR_house'},
+                                    {'label': 'Multiple Linear Regression: Hegional Features', 'value': 'MLR_regional'}
+                                ],
+                                value = 'MLR_full',
+                                style ={
+                                'font-size': '11px',
+                                'margin-top': '5px',
+                                'margin-bottom': '10px',
+                                'width': '180%',
+                                'white-space': 'nowrap',
+                                #'display': 'inline-block'
+                                }
+                            ),
+                            dcc.Dropdown(
+                                id = 'bar-options',
+                                options = [
+                                    {'label': 'Average price', 'value': 'avg_price'},
+                                    {'label': 'Maximum price', 'value' : 'max_price'},
+                                    {'label': 'Average cap rate', 'value': 'avg_caprate'},
+                                    {'label': 'Maximum cap rate', 'value': 'max_caprate'},
+                                    {'label': 'Average undervaluement', 'value': 'avg_differential'},
+                                    {'label': 'Maximum undervaluement', 'value': 'max_differential'},
+                                ],
+                                value = 'avg_price',
+                                style = {
+                                    'font-size': '11px',
+                                    'margin-top': '5px',
+                                    'margin-bottom': '10px',
+                                    'width': '180%',
+                                    'white-space': 'nowrap',
+                                }
+                            ),
+                        ], style = {'display': 'inline-block',
+                                    'paddingLeft': '5%',
+                                    }
+                        ),
+                        html.Div([
+                            html.Div([
+                                html.H6('Select interpreter',
+                                    style= {
+                                    'color': corporate_colors['superdark-green']
+                                    }
+                                )
+                            ],
+                                style = {
+                                    'text-align': 'center',
+                                    'margin-top': '10px'
+                                }
+                            ),
+                            dcc.RadioItems(
+                                id = 'interpretation-type',
+                                options = [
+                                    {'label': 'SHAP', 'value': 'shap'},
+                                    {'label': 'LIME', 'value': 'lime'}
+                                ],
+                                value = 'shap',
+                                style = {
+                                    'font-size': '11px',
+                                    #'display': 'inline-block',
+                                }
+                            ),
+                            html.H6(
+                                'Look at the best',
+                                style = {'color': corporate_colors['superdark-green'],
+                                'margin-top': '10px'}
+                                ),
+                            dcc.RadioItems(
+                                id = 'granularity',
+                                options = [
+                                    {'label': 'Zip codes', 'value': 'zipcode'},
+                                    {'label': 'Counties', 'value': 'county'}
+                                ],
+                                value = 'zipcode',
+                                style = {
+                                    'font-size': '11px'
+                                }
+                            )
+                        ], style = {
+                            'margin-top' : '5px',
+                            'color': corporate_colors['superdark-green'],
+                            'display': 'inline-block',
+                            'paddingLeft': '25%'
+                            }
+                        ),
+                    ],  style = filterdiv_borderstyling
+                    )
+                ], className = 'col-12'),
+            ])
+        ])
+    ]), # External row
 
     #####################
     #Row 4
@@ -904,8 +956,59 @@ page3 = html.Div([
     #Row 5 : Charts
     html.Div([ # External row
 
-        html.Br()
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
 
-    ])
+        html.Div([ 
+
+            html.Div([ # Internal row
+
+                # Chart Column
+
+                html.Div([
+                    dcc.Graph(id = 'top-bars',
+                        style = {'width': '90%'}
+                        )
+                ],
+                className = 'col-8'),
+
+                # Chart Column
+                html.Div([
+                ],
+                className = 'col-4'),
+
+            ],
+            className = 'row'), # Internal row
+
+            html.Div([ # Internal row
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(id = 'lower-bars'
+                        
+                        )
+                ],
+                className = 'col-12'),
+
+            ],
+            className = 'row') # Internal row
+
+
+        ],
+        className = 'col-10',
+        style = externalgraph_colstyling), # External 10-column
+
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
+
+    ],
+    className = 'row',
+    style = externalgraph_rowstyling
+    ), # External row
 
 ])
+
+
+
