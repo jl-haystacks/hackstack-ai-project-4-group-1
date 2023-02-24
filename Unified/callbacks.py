@@ -414,7 +414,7 @@ repo_groups_l1_all = [
     {'max_score': 'Model score (R-squred)'},
     ]
 
-
+################### Callback for producing a map
 
 @app.callback(
    dash.dependencies.Output('ga-map', 'figure'),
@@ -424,6 +424,7 @@ repo_groups_l1_all = [
        dash.dependencies.Input('map-model', 'value')
    ]
 )
+################### Changes map on Map page
 
 def update_map(coloring, reso, model):
     if reso == 'zipcode':
@@ -486,32 +487,19 @@ def update_map(coloring, reso, model):
     return fig
 
 
-
-
-# Function to update bar chart and choropleth map (DOES NOT WORK)
-#def updateGraphCB(value, fig):
-#    # filter traces...
-#    fig = go.Figure(fig).update_traces(visible=False)
-#    fig.update_traces(visible = True, selector= {"meta" : value})
-#    return fig
-
-# Function to update bar chart and choropleth map (DOES NOT WORK)
-# def update_chart(value, fig):
-#     ## L1 selection (dropdown value is a list!)
-#     if value == 0: fig['layout'] = {'visible': [True, False, False, False]}
-#     elif value == 1: fig['layout'] = {'visible': [False, True, False, False]}
-#     elif value == 2: fig['layout'] = {'visible': [False, False, True, False]}
-#     elif value == 3: fig['layout'] = {'visible': [False, False, False, True]}
-#     return fig
-
 ####################################################################################################
 # 00B - SCATTER PLOT UPDATE
 ####################################################################################################
+
+################### Callback for updating features according to model
 
 @app.callback(
     dash.dependencies.Output('feat_list', 'children'),
     dash.dependencies.Input('crossfilter-model', 'value')
 )
+
+################### Function updates features dropdown according to model
+
 def update_feature_list(which_model):
     X = dcc.Dropdown(id = 'crossfilter-feature',
     options = [{'label': i, 'value': i} for i in MS_ser[which_model].loc[30002,'model'].feature_names_in_],
@@ -519,18 +507,17 @@ def update_feature_list(which_model):
     value = MS_ser[which_model].loc[30002,'model'].feature_names_in_[0],
     # Permit user to select only one option at a time
     multi = False,
-    # Default message in dropdown before user select options
-    # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
     style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
     )
     return X
 
-# Callback for dynamic dropdown
+################### Callback for dynamic dropdown of zipcodes/counties
+
 @app.callback(
     dash.dependencies.Output('reso_list', 'children'),
     dash.dependencies.Input('crossfilter-resolution', 'value')
 )
-# Create dynamic dropdown. Effects change in scatter-plot as well.
+################### Create dynamic dropdown. Effects change in scatter-plot as well.
 
 def update_scale(resolution_dropdown):
     new_dropdown = dcc.Dropdown(
@@ -540,7 +527,7 @@ def update_scale(resolution_dropdown):
     )
     return new_dropdown
 
-# First callback for SHAP values
+################### First callback for SHAP values
 
 @app.callback(
     dash.dependencies.Output('shap-bee', 'src'),
@@ -551,7 +538,7 @@ def update_scale(resolution_dropdown):
         dash.dependencies.Input('crossfilter-model', 'value'),    ## need to figure out a good way to do this. Will probably use a Series of those model dataframes
     ]
 )
-# Function to update SHAP values
+################### Function to update SHAP values
 
 def update_shap(focus, which_model):
     plt.style.use("dark_background")
@@ -569,7 +556,8 @@ def update_shap(focus, which_model):
     X = "data:image/png;base64,{}".format(data)
     return X
 
-# First callback to coordinate scatterplot with feature, model, and color gradient schema
+################### First callback to coordinate scatterplot with feature, model, and color gradient schema
+
 @app.callback(
     dash.dependencies.Output('scatter-plot', 'figure'),
     [
@@ -581,7 +569,8 @@ def update_shap(focus, which_model):
         dash.dependencies.Input('select-target', 'value')
     ]
 )
-# Function to update graph in response to feature, model, and color gradient schema being updated
+
+################### Function to update graph in response to feature, model, and color gradient schema being updated
 
 def update_graph(feature, model, gradient, resolution, focus, target):
     # Define points and respective colors of scatter plot
@@ -612,9 +601,6 @@ def update_graph(feature, model, gradient, resolution, focus, target):
             'square_footage': 'Square footage'
         }
     )
-    # Update feature information when user hovers over data point
-    # customdata_set = list(df[features].to_numpy())
-    fig.update_traces(customdata=all_dfs[focus].index)
     if target == 'price':
         fig.update_layout(yaxis_title='Price')
     else:
@@ -638,7 +624,8 @@ def update_graph(feature, model, gradient, resolution, focus, target):
 
     return fig
 
-# Function to create point plot of averages of selected features
+################### Function to create point plot of averages of selected features
+
 def create_point_plot(df, title):
 
     fig = go.Figure(
@@ -662,27 +649,31 @@ def create_point_plot(df, title):
 
     return fig
 
-# Callback to update point plot based on user hovering over points in scatter plot
+################### Callback to update point plot based on user hovering over points in scatter plot
+
 @app.callback(
     dash.dependencies.Output('point-plot', 'figure'),
     [
         # Update graph on click
         dash.dependencies.Input('scatter-plot', 'clickData')
-        # Update graph on hover
-        # dash.dependencies.Input('scatter-plot', 'hoverData')
     ]
 )
 
-# Function to trigger last function in response to user click point in scatter plot
+################### Function to trigger last function in response to user click point in scatter plot
+
 def update_point_plot(clickData):
     index = clickData['points'][0]['customdata']
     title = f'Customer {index}'
     return create_point_plot(df[features].iloc[index], title)
 
+################### Callback for accuracy value text
+
 @app.callback(
     dash.dependencies.Output('model-accuracy-statement', 'children'),
     dash.dependencies.Input('acc-cutoff', 'value')
 )
+
+################### Changes accuracy value text
 
 def display_accuracy(value):
     return html.H6(f'Minimum model R-squared: {value}', style = {'color': corporate_colors['superdark-green']})
@@ -696,6 +687,8 @@ def display_accuracy(value):
         dash.dependencies.Input('bar-options', 'value')
     ]
 )
+
+################### Updates  the top bar charts in Interpret page
 
 def update_top_bars(cutoff, model, reso, selection):
     if reso == 'zipcode':
@@ -726,21 +719,9 @@ def update_top_bars(cutoff, model, reso, selection):
         },
     )
     fig.update_xaxes(type='category')
-    # Update feature information when user hovers over data point
-    # customdata_set = list(df[features].to_numpy())
-    #fig.update_traces(customdata=all_dfs[focus].index)
-    #if target == 'price':
-    #    fig.update_layout(yaxis_title='Price')
-    #else:
-    #    fig.update_layout(yaxis_title='Cap rate')
-    # Layout of scatter plot
-    fig.update_layout(
-        #coloraxis_colorbar={'title': f'{selection}'},
-        #coloraxis_showscale=True,
-        #legend_title_text='Spend',
-        height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
-        #hovermode='closest',
 
+    fig.update_layout(
+        height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
         template='plotly_dark',
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor = 'rgba(0,0,0,0)',
@@ -753,6 +734,8 @@ def update_top_bars(cutoff, model, reso, selection):
 
     return fig
 
+################### Callback for creating bar chart on bottom of Interpret page
+
 @app.callback(
     dash.dependencies.Output('lower-bars', 'figure'),
     [
@@ -763,7 +746,7 @@ def update_top_bars(cutoff, model, reso, selection):
         dash.dependencies.Input('top-bars', 'clickData')
     ]
 )
-## Creates lower bars from either click data or selected values
+################### Creates lower bars from either click data or selected values
 
 def lower_bars(cutoff, model, reso, selection, click): 
     if callback_context.triggered[0]['prop_id'] == 'top-bars.clickData':
@@ -856,7 +839,7 @@ def lower_bars(cutoff, model, reso, selection, click):
     return fig
 
 
-## Generates SHAP/LIME graph
+################### Generates SHAP graph
 
 def generate_interpretation(model, lbcd):
     idx = int(lbcd['points'][0]['customdata'][2])
@@ -900,6 +883,7 @@ def generate_interpretation(model, lbcd):
     #idx = int(lbcd['points'][0]['customdata'][2])
     #pass
 
+################### Callback for waterfall plot
 
 @app.callback(
     dash.dependencies.Output('limeshap', 'children'),
@@ -910,7 +894,7 @@ def generate_interpretation(model, lbcd):
     ]
 )
 
-## Updates LIME/SHAP graphs based on clickdata
+################### Updates SHAP waterfall based on clickdata 
     
 def update_interpretation(which_model, lbcd):
     fig = generate_interpretation(which_model, lbcd)
