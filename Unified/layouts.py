@@ -7,11 +7,12 @@ import numpy as np
 # from dash import dash_table
 # from dash.dash_table.Format import Format, Group
 # from dash.dash_table.FormatTemplate import FormatTemplate
+import plotly.express as px
 from datetime import datetime as dt
 from app import app
 import scripts.utils_haystacks as f
 import scripts.create_ga_fig as g
-
+import json
 ####################################################################################################
 # 000 - FORMATTING INFO
 ####################################################################################################
@@ -170,17 +171,21 @@ raw_dataset_path = f.RAW_PATH + f.config['path']['name']
 df_raw = pd.read_csv(raw_dataset_path)
 
 # Create DataFrames for map and bar chart
-df_ga = g.process_ga_data(df_raw)
+#df_ga = g.process_ga_data(df_raw)
 
 # Prepare figure
-fig_ga = g.create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
+#fig_ga = g.create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
 
 #Create L1 dropdown options
 repo_groups_l1_all = [
-    {'label' : 'Counties: Number of Listings', 'value' : 0},
-    {'label' : 'Counties: Average Listing Price', 'value' : 1},
-    {'label' : 'Zipcodes: Number of Listings', 'value' : 2},
-    {'label' : 'Zipcodes: Average Listing Price', 'value' : 3},
+    {'label' : 'Number of Listings', 'value' : 'count'},
+    {'label' : 'Average Listing Price', 'value' : 'avg_listing_price'},
+    {'label': 'Maximum Listing Price', 'value': 'max_listing_price'},
+    {'label' : 'Average Estimated Price', 'value' : 'avg_price'},
+    {'label' : 'Average Listing Price', 'value' : 'max_price'},
+    {'label': 'Average Amount Undervalued According to Model', 'value': 'avg_differential'},
+    {'label': 'Maximum Amount a Listing is Undervalued According to Model', 'value': 'max_differential'},
+    {'label' : 'Model Score Over Region', 'value' : 'max_score'},
     ]
 ########################### Page 1 - Maps
 
@@ -246,7 +251,6 @@ df_average = df[features].mean()
 
 # Calculate maximum value of entire dataframe to set limit of point plot
 max_val = df.max()
-
 
 # Model group L1 options
 crossfilter_model_options = [
@@ -326,7 +330,7 @@ def get_navbar(p = 'page1'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'SHAP/LIME'),
+                html.H4(children = 'Interpret'),
                 href='/apps/page3'
                 )
         ],
@@ -363,7 +367,7 @@ def get_navbar(p = 'page1'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'SHAP/LIME'),
+                html.H4(children = 'Interpret'),
                 href='/apps/page3'
                 )
         ],
@@ -399,7 +403,7 @@ def get_navbar(p = 'page1'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'SHAP/LIME',
+                html.H4(children = 'Interpret',
                         style = navbarcurrentpage),
                 href='/apps/page3'
                 )
@@ -477,12 +481,36 @@ page1 = html.Div([
                             children='Filters by Reporting Groups:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
+                        html.H6(
+                                'Look at ',
+                                style = {'color': corporate_colors['superdark-green'],
+                                'margin-top': '10px'}
+                                ),
+                        dcc.RadioItems(
+                            id = 'which_json',
+                            options = [
+                                {'label': 'Zip codes', 'value': 'zipcode'},
+                                {'label': 'Counties', 'value': 'county'}
+                            ],
+                            value = 'county',
+                            style = {
+                                'font-size': '11px'
+                            }
+                        ),
+                        dcc.Dropdown(
+                            id = 'map-model',
+                            options = crossfilter_model_options,
+                            value = 'MLR_full',
+                            multi = False,
+                            style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
+                        ),
                         #Reporting group selection l1
+
                         html.Div([
                             dcc.Dropdown(id = 'reporting-groups-l1dropdown-sales',
                                 options = repo_groups_l1_all,
                                 # Default value when loading
-                                value = [''],
+                                value = 'count',
                                 # Permit user to select only one option at a time
                                 multi = False,
                                 # Default message in dropdown before user select options
@@ -535,9 +563,9 @@ page1 = html.Div([
             id='ga_line',
             children = [
                 dcc.Graph(
-                    id='ga_map', 
-                    figure=fig_ga, 
-                    config={'scrollZoom': True},
+                    id='ga-map', 
+                    #figure=fig_ga, 
+                    config={'scrollZoom': True},                  
                     ),       
                 ], 
             ), 
@@ -608,7 +636,7 @@ page2 = html.Div([
                                 options = [{'label': 'Price', 'value':'price'},
                                     {'label': 'Cap rate', 'value':'caprate'}
                                     ],
-                                value = 'price',
+                                #value = 'price',
                                 multi = False,
                                 # Default message in dropdown before user select options
                                 # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
@@ -625,7 +653,7 @@ page2 = html.Div([
                             dcc.Dropdown(id = 'crossfilter-resolution',
                                 options = crossfilter_resolution_options,
                                 # Default value when loading
-                                value = ['state'],
+                                #value = 'state',
                                 # Permit user to select only one option at a time
                                 multi = False,
                                 # Default message in dropdown before user select options
@@ -653,7 +681,7 @@ page2 = html.Div([
                         ),
                         html.Div(id = 'feat_list', children = [
                             dcc.Dropdown(id = 'crossfilter-feature',
-                              
+                                #value = 'price',
                                 style = {'font-size': '1d3px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 )
                             ],
@@ -665,10 +693,10 @@ page2 = html.Div([
                         ),
                         #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
                         html.Div(id = 'reso_list', children = [
-                            dcc.Dropdown(id = 'filter-dropdown',
+                            dcc.Dropdown(id = 'filter-dropdown', #value = 'Georgia',
                                 style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 )
-                            ],
+                            ], 
                             style = {'width' : '70%', 'margin-top' : '5px'})
                     ],
                     style = {'margin-top' : '10px',
@@ -753,6 +781,7 @@ page2 = html.Div([
                 className = 'col-8'),
 
                 # Chart Column
+
                 html.Div([
                     html.Img(
                         id='shap-bee', 
@@ -895,29 +924,28 @@ page3 = html.Div([
                         ),
                         html.Div([
                             html.Div([
-                                html.H6('Select interpreter',
-                                    style= {
-                                    'color': corporate_colors['superdark-green']
-                                    }
-                                )
+                                #html.H6('Select interpreter',
+                                 #   style= {
+                                 #   'color': corporate_colors['superdark-green']
+                                 #   }
+                                #)
                             ],
                                 style = {
                                     'text-align': 'center',
                                     'margin-top': '10px'
                                 }
                             ),
-                            dcc.RadioItems(
-                                id = 'interpretation-type',
-                                options = [
-                                    {'label': 'SHAP', 'value': 'shap'},
-                                    {'label': 'LIME', 'value': 'lime'}
-                                ],
-                                value = 'shap',
-                                style = {
-                                    'font-size': '11px',
-                                    #'display': 'inline-block',
-                                }
-                            ),
+                            #dcc.RadioItems(
+                            #    id = 'interpretation-type',
+                            #    options = [
+                            #        {'label': 'SHAP', 'value': 'shap'},
+                            #        {'label': 'LIME', 'value': 'lime'}
+                            #    value = 'shap',
+                            #    style = {
+                            #        'font-size': '11px',
+                            #        #'display': 'inline-block',
+                            #    }
+                            #),
                             html.H6(
                                 'Look at the best',
                                 style = {'color': corporate_colors['superdark-green'],
@@ -963,32 +991,33 @@ page3 = html.Div([
         html.Div([ 
 
             html.Div([ # Internal row
-
                 # Chart Column
-
                 html.Div([
+                    html.H5('The top regions'),
                     dcc.Graph(id = 'top-bars',
                         style = {'width': '90%'}
                         )
                 ],
                 className = 'col-8'),
-
-                # Chart Column
-                html.Div([
-                ],
-                className = 'col-4'),
+                # LIME/SHAP values here  
+                html.Div(id = 'limeshap',
+                    children = [
+                    html.H6('Select an address to interpret')
+                    ],
+                className = 'col-4'
+                ),
 
             ],
             className = 'row'), # Internal row
 
             html.Div([ # Internal row
 
-                # Chart Column
+                # Chart Column 
                 html.Div([
+                    html.H5('Select an address'),
                     dcc.Graph(id = 'lower-bars'
-                        
                         )
-                ],
+                ],style = {'paddingTop' : '10px'},
                 className = 'col-12'),
 
             ],

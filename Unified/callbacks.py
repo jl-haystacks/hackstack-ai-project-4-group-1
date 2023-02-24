@@ -2,7 +2,7 @@ import dash
 from dash import dcc
 import dash_bootstrap_components as dbc
 from dash import html
-from jupyter_dash import JupyterDash
+from dash import callback_context
 import pandas as pd
 import numpy as np
 import plotly.express as px # plotly v 4.7.1
@@ -22,6 +22,7 @@ from datetime import datetime as dt
 from app import app
 import scripts.utils_haystacks as f
 import scripts.create_ga_fig as g
+import json
 
 ####################################################################################################
 # 000 - FORMATTING INFO
@@ -181,18 +182,22 @@ raw_dataset_path = f.RAW_PATH + f.config['path']['name']
 df_raw = pd.read_csv(raw_dataset_path)
 
 # Create DataFrames for map and bar chart
-df_ga = g.process_ga_data(df_raw)
+#df_ga = g.process_ga_data(df_raw)
 
 # Prepare figure
-fig_ga = g.create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
+#fig_ga = g.create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
 
 #Create L1 dropdown options
 
 repo_groups_l1_all = [
-    {'label' : 'Counties: Number of Listings', 'value' : 0},
-    {'label' : 'Counties: Average Listing Price', 'value' : 1},
-    {'label' : 'Zipcodes: Number of Listings', 'value' : 2},
-    {'label' : 'Zipcodes: Average Listing Price', 'value' : 3},
+    {'label' : 'Number of Listings', 'value' : 'count'},
+    {'label' : 'Average Listing Price', 'value' : 'avg_listing_price'},
+    {'label': 'Maximum Listing Price', 'value': 'max_listing_price'},
+    {'label' : 'Average Estimated Price', 'value' : 'avg_price'},
+    {'label' : 'Average Estimated Price', 'value' : 'max_price'},
+    {'label': 'Average Amount Undervalued According to Model', 'value': 'avg_differential'},
+    {'label': 'Maximum Amount a Listing is Undervalued According to Model', 'value': 'max_differential'},
+    {'label' : 'Model Score Over Region', 'value' : 'max_score'},
     ]
 ########################### Page 1 - Maps
 
@@ -241,7 +246,13 @@ all_dfs = pd.read_pickle('data/pickle/preloading.P')
 #        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
 #        zdf[model+'_differential'] = zdf[model+'_price']-zdf['price']
 
+# https://maps.princeton.edu/catalog/tufts-gacounties10
+with open('data/geojson/tufts-gacounties10-geojson.json') as json_data:
+    map_ga_counties = json.load(json_data)
 
+    # Load in zipcode-level geoJSON
+with open('data/geojson/harvard-tg00gazcta-geojson.json') as json_data:
+    map_ga_zipcodes = json.load(json_data)
 
 # Define features to be utilized for generating scatter plots
 
@@ -274,7 +285,6 @@ crossfilter_model_options = [
     {'label': 'Multiple Linear Regression: regional features', 'value': 'MLR_regional'}
     ]
 
-
 # Resolution group L2 options
 crossfilter_resolution_options = [
     {'label': 'State', 'value': 'state'},
@@ -293,16 +303,27 @@ for model in MS_ser.index:
              model+'_caprate': ['mean', 'max'],
              model+'_differential': ['mean', 'max'],
              model+'_score':['mean', 'max'], ## These are the same, but can't rename without
+            'price': ['mean', 'max'],
             }, axis=0
         ).unstack(level=1)).T
-        X.columns = ['avg_price', 'max_price', 'avg_caprate', 'max_caprate', 'avg_differential', 'max_differential', 'avg_score', 'max_score']
+        X.columns = ['avg_price', 'max_price', 'avg_caprate', 'max_caprate', 'avg_differential', 'max_differential', 'avg_score', 'max_score', 'avg_listing_price', 'max_listing_price']
         X.index = pd.Index([focus])
         model_stats[model] = model_stats[model].append(X)
+    for idx in model_stats[model].index:
+        temp = df.loc[((idx == df.zipcode) |(idx == df.county)) | (idx == 'Georgia')]
+        model_stats[model].loc[idx,'count'] = len(temp)
 
 reg_idx=pd.Series(dtype='O')  ## Masks above to only have zipcodes
 for mod in model_stats.index:
     reg_idx[mod] = pd.Series(model_stats[mod].index).astype('str').str.isnumeric()
     reg_idx[mod].index = model_stats[mod].index
+
+zip_idx = pd.Series(model_stats[model].index).astype('str').str.isnumeric()
+zip_idx.index = model_stats[model].index
+
+count_idx = ~pd.Series(model_stats[model].index).astype('str').str.isnumeric()
+count_idx.index = model_stats[model].index
+
 
 ####################################################################################################
 # 000 - DEFINE ADDITIONAL FUNCTIONS
@@ -382,18 +403,98 @@ corporate_colorscale = [
 ####################################################################################################
 # 00A - BAR CHART AND CHOROPLETH MAP UPDATE
 ####################################################################################################
+repo_groups_l1_all = [
+    {'count': 'Number of Listings'},
+    {'avg_listing_price': 'Average Listing Price'},
+    {'max_listing_price': 'Maximum Listing Price' },
+    {'avg_price': 'Average Estimated Price'},
+    {'max_price': 'Average Estimated Price'},
+    {'avg_differential' : 'Average Amount Undervalued'},
+    {'max_differential': 'Maximum Amount a Listing is Undervalued '},
+    {'max_score': 'Model score (R-squred)'},
+    ]
+
+
 
 @app.callback(
-    dash.dependencies.Output('ga-map', 'figure'),
-    dash.dependencies.Input('reporting-groups-l1dropdown-sales', 'value'),
-    dash.dependencies.State('ga-map', 'figure')
+   dash.dependencies.Output('ga-map', 'figure'),
+   [
+       dash.dependencies.Input('reporting-groups-l1dropdown-sales', 'value'),
+       dash.dependencies.Input('which_json', 'value'),
+       dash.dependencies.Input('map-model', 'value')
+   ]
 )
-# Function to update bar chart and choropleth map (DOES NOT WORK)
-def updateGraphCB(value, fig):
-    # filter traces...
-    fig = go.Figure(fig).update_traces(visible=False)
-    fig.update_traces(visible = True, selector= {"meta" : value})
+
+def update_map(coloring, reso, model):
+    if reso == 'zipcode':
+        fig = px.choropleth_mapbox(
+            model_stats[model][zip_idx].reset_index(),
+            geojson=map_ga_zipcodes,
+            locations= 'index',
+            color=coloring,
+            color_continuous_scale="Viridis",
+            mapbox_style="carto-positron",
+            featureidkey = 'properties.ZCTA', 
+            zoom=5,
+            center = {"lat": 32.6461, "lon": -83.4317},
+            opacity=0.5,
+            labels={
+                'index': 'Zip code',
+                'count': 'Number of Listings',
+                'avg_listing_price': 'Average Listing Price',
+                'max_listing_price': 'Maximum Listing Price' ,
+                'avg_price': 'Average Estimated Price',
+                'max_price': 'Average Estimated Price',
+                'avg_differential' : 'Average Amount Undervalued',
+                'max_differential': 'Maximum Amount a Listing is Undervalued',
+                'max_score': 'Model score (R-squred)'
+                },
+            )
+    elif reso == 'county':
+        fig = px.choropleth_mapbox(
+            model_stats[model][count_idx].reset_index(),
+            geojson=map_ga_counties,
+            locations= 'index',
+            color=coloring,
+            color_continuous_scale="Viridis",
+            mapbox_style="carto-positron",
+            featureidkey = 'properties.name10', 
+            zoom=5,
+            center = {"lat": 32.6461, "lon": -83.4317},
+            opacity=0.5,
+            labels={
+                'index': 'County',
+                'count': 'Number of Listings',
+                'avg_listing_price': 'Average Listing Price',
+                'max_listing_price': 'Maximum Listing Price' ,
+                'avg_price': 'Average Estimated Price',
+                'max_price': 'Average Estimated Price',
+                'avg_differential' : 'Average Amount Undervalued',
+                'max_differential': 'Maximum Amount a Listing is Undervalued',
+                'max_score': 'Model score (R-squred)'
+                },
+            )
+    fig.update_layout(
+        coloraxis_showscale=True,
+        legend_title_text='Spend',
+        height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
+        hovermode='closest',
+        template='plotly_dark',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor = 'rgba(0,0,0,0)',
+    )
     return fig
+
+
+
+
+# Function to update bar chart and choropleth map (DOES NOT WORK)
+#def updateGraphCB(value, fig):
+#    # filter traces...
+#    fig = go.Figure(fig).update_traces(visible=False)
+#    fig.update_traces(visible = True, selector= {"meta" : value})
+#    return fig
+
 # Function to update bar chart and choropleth map (DOES NOT WORK)
 # def update_chart(value, fig):
 #     ## L1 selection (dropdown value is a list!)
@@ -487,7 +588,7 @@ def update_graph(feature, model, gradient, resolution, focus, target):
     cols = all_dfs[focus][feature].values #df[feature].values
     hover_names = []
     for ix, val in zip(all_dfs[focus].index.values, all_dfs[focus][feature].values):
-        hover_names.append(f'Customer {ix:03d}<br>{feature} value of {val}')
+        hover_names.append(f'Listing {ix:03d}<br>{feature} value of {val}')
     # Generate scatter plot
     fig = px.scatter(
         all_dfs[focus],
@@ -499,6 +600,17 @@ def update_graph(feature, model, gradient, resolution, focus, target):
         hover_data= features,
         template='plotly_dark',
         color_continuous_scale=gradient,
+        labels = {
+            'HS_rating': 'High school rating',
+            'MS_rating': 'Middle school rating',
+            'ES_rating': 'Elementary school rating',
+            'property_crime_grade': 'Property crime grade',
+            'overall_crime_grade': 'Overall crime grade',
+            'baths_half': 'Half bathrooms',
+            'baths_full': 'Full bathrooms',
+            'lot_size': 'Lot size',
+            'square_footage': 'Square footage'
+        }
     )
     # Update feature information when user hovers over data point
     # customdata_set = list(df[features].to_numpy())
@@ -542,7 +654,7 @@ def create_point_plot(df, title):
         margin={'l': 20, 'b': 30, 'r': 10, 't': 10},
         template='plotly_dark',
         plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor = 'rgba(0,0,0,0)'
+        paper_bgcolor = 'rgba(0,0,0,0)',
     )
     # Axis settings for point plot
     fig.update_xaxes(showgrid=True)
@@ -591,12 +703,27 @@ def update_top_bars(cutoff, model, reso, selection):
     else:
         allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & ~((reg_idx[model]) | (model_stats[model].index == 'Georgia'))].sort_values(by='max_score', ascending = False)
     top5 = allowed_regions.sort_values(by=selection, ascending = False).iloc[0:5].reset_index() 
-
-    fig = px.histogram(
+    if reso == 'zipcode':
+        where = 'Zip code'
+    else: where = 'County'
+    fig = px.bar(
         top5,
         x='index',
         y=selection,
+        hover_data = ['count', 'avg_score'],
         opacity=0.8,
+        labels={
+            'index': where,
+            'count': 'Number of listings',
+            'avg_listing_price': 'Average listing price',
+            'max_listing_price': 'Maximum listing price' ,
+            'avg_price': 'Average estimated price',
+            'max_price': 'Average estimated price',
+            'avg_differential' : 'Average undervaluement',
+            'max_differential': 'Maximum undervaluement',
+            'max_score': 'Model score (R-squared)',
+            'avg_score': 'Model score (R-squared)'
+        },
     )
     fig.update_xaxes(type='category')
     # Update feature information when user hovers over data point
@@ -632,27 +759,89 @@ def update_top_bars(cutoff, model, reso, selection):
         dash.dependencies.Input('acc-cutoff', 'value'),
         dash.dependencies.Input('choose-model','value'),
         dash.dependencies.Input('granularity', 'value'),
-        dash.dependencies.Input('bar-options', 'value')
+        dash.dependencies.Input('bar-options', 'value'),
+        dash.dependencies.Input('top-bars', 'clickData')
     ]
 )
-def first_lower_bars(cutoff, model, reso, selection):
-    if reso == 'zipcode':
+## Creates lower bars from either click data or selected values
+
+def lower_bars(cutoff, model, reso, selection, click): 
+    if callback_context.triggered[0]['prop_id'] == 'top-bars.clickData':
+        if reso == 'zipcode':
+            top10  = all_dfs[int(click['points'][0]['x'])].sort_values(by = model +'_'+ selection[4:], ascending = False).iloc[0:10]
+        else:
+            top10 =  all_dfs[click['points'][0]['x']].sort_values(by = model +'_'+ selection[4:], ascending = False).iloc[0:10]
+        top10 = top10.reset_index()
+        fig = px.bar(
+            top10,
+            x= 'address',
+            y = model+'_'+selection[4:],
+            opacity = 0.8,
+            hover_data = ['city', reso, 'index'],
+            labels = {
+                'MLR_full_price': 'Price',
+                'MLR_regional_price': 'Price',
+                'MLR_housing_price': 'Price',
+                'MLR_full_differential': 'Undervalued by',
+                'MLR_regional_differential': 'Undervalued by',
+                'MLR_housing_differential': 'Undervalued by',
+                'MLR_full_caprate': 'Cap rate',
+                'MLR_regional_caprate': 'Cap Rate',
+                'MLR_housing_caprate': 'Cap rate',
+                'avg_score': 'Model score (R-squared)',
+                'zipcode': 'Zip code',
+                'city': 'City',
+                'index': 'Listing number',
+                'address': 'Address'
+            },
+        )
+        fig.update_xaxes(type='category')
+
+        fig.update_layout(
+
+            height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
+
+            template='plotly_dark',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor = 'rgba(0,0,0,0)',
+        )
+        # Axis settings for scatter plot
+        fig.update_xaxes(showticklabels=True)
+        fig.update_yaxes(showticklabels=True)
+
+        return fig
+    elif reso == 'zipcode':
         allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & (reg_idx[model])].sort_values(by='max_score', ascending = False)
+        top10 = all_dfs['Georgia'][all_dfs['Georgia'][reso].isin(allowed_regions.index)].sort_values(by=model+'_'+selection[4:], ascending = False).iloc[0:10] 
     else:
         allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & ~((reg_idx[model]) | (model_stats[model].index == 'Georgia'))].sort_values(by='max_score', ascending = False)
-
-    top10 = all_dfs['Georgia'][all_dfs['Georgia'][reso].isin(allowed_regions.index)].sort_values(by=model+'_'+selection[4:], ascending = False).iloc[0:10] ## top 10 individuals within remaining zip codes/counties. Click event will specifify zip codes/counties
+        top10 = all_dfs['Georgia'][all_dfs['Georgia'][reso].isin(allowed_regions.index)].sort_values(by=model+'_'+selection[4:], ascending = False).iloc[0:10] 
     top10 = top10.reset_index()
-    fig = px.histogram(
+    fig = px.bar(
         top10,
-        x=reso, ## county or zip 
+        x='address', 
         y=model+'_'+selection[4:], #omit avg_ or max_
         opacity=0.8,
+        hover_data = ['city', reso, 'index'],
+        labels = {
+            'MLR_full_price': 'Price',
+            'MLR_regional_price': 'Price',
+            'MLR_housing_price': 'Price',
+            'MLR_full_differential': 'Undervalued by',
+            'MLR_regional_differential': 'Undervalued by',
+            'MLR_housing_differential': 'Undervalued by',
+            'MLR_full_caprate': 'Cap rate',
+            'MLR_regional_caprate': 'Cap Rate',
+            'MLR_housing_caprate': 'Cap rate',
+            'avg_score': 'Model score (R-squared)',
+            'zipcode': 'Zip code',
+            'city': 'City',
+            'index': 'Listing number'
+        },
     )
     fig.update_xaxes(type='category')
 
     fig.update_layout(
-
         height=650, margin={'l': 40, 'b': 40, 't': 10, 'r': 0},
 
         template='plotly_dark',
@@ -660,9 +849,70 @@ def first_lower_bars(cutoff, model, reso, selection):
         paper_bgcolor = 'rgba(0,0,0,0)',
     )
 
-
     # Axis settings for scatter plot
     fig.update_xaxes(showticklabels=True)
     fig.update_yaxes(showticklabels=True)
 
     return fig
+
+
+## Generates SHAP/LIME graph
+
+def generate_interpretation(model, lbcd):
+    idx = int(lbcd['points'][0]['customdata'][2])
+    row = MS_ser[model].loc['Georgia','shap_values'][idx].values
+    fig = px.bar(
+        x=row,
+        y=MS_ser[model].loc['Georgia','model'].feature_names_in_, 
+        opacity=0.8,
+        labels = {
+            'HS_rating': 'High school rating',
+            'MS_rating': 'Middle school rating',
+            'ES_rating': 'Elementary school rating',
+            'property_crime_grade': 'Property crime grade',
+            'overall_crime_grade': 'Overall crime grade',
+            'baths_half': 'Half bathrooms',
+            'baths_full': 'Full bathrooms',
+            'lot_size': 'Lot size',
+            'square_footage': 'Square footage',
+            'MLR_full_price': 'Price',
+            'MLR_regional_price': 'Price',
+            'MLR_housing_price': 'Price',
+            'MLR_full_caprate': 'Cap rate',
+            'MLR_regional_caprate': 'Cap Rate',
+            'MLR_housing_caprate': 'Cap rate',
+            },
+        color = row > 0,
+        color_discrete_map={True: "red", False: "blue"},
+    )
+    fig.update_layout(
+        margin={'l': 5, 'b': 5, 'r': 5, 't': 5},
+        template='plotly_dark',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor = 'rgba(0,0,0,0)',
+        xaxis_title= 'Marginal contribution of feature',
+        yaxis_title= 'Feature',
+        showlegend = False
+    )
+    fig.update_yaxes(type='category')
+    return fig
+    #elif inter == 'lime':
+    #idx = int(lbcd['points'][0]['customdata'][2])
+    #pass
+
+
+@app.callback(
+    dash.dependencies.Output('limeshap', 'children'),
+    [
+        dash.dependencies.State('choose-model', 'value'),
+        dash.dependencies.Input('lower-bars', 'clickData'),
+        #dash.dependencies.State('interpretation-type', 'value'),
+    ]
+)
+
+## Updates LIME/SHAP graphs based on clickdata
+    
+def update_interpretation(which_model, lbcd):
+    fig = generate_interpretation(which_model, lbcd)
+    topmsg = 'Looking at address ' + lbcd['points'][0]['x']+', '+ lbcd['points'][0]['customdata'][0] +' '+ str(lbcd['points'][0]['customdata'][1])
+    return [html.H6(topmsg), dcc.Graph(figure = fig)]
