@@ -14,5 +14,3 @@ Models/ridge_models.sav
 ~
 *.P
 Unified/scripts/.ipynb_checkpoints/MLR_model_creator-checkpoint.ipynb
-~
-*.DS_store
