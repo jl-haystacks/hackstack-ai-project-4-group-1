@@ -394,13 +394,13 @@ page1 = html.Div([
                 #Filter pt 2
                 html.Div([
 
-                    html.Div([
+                    html.Div([ ## select granularity
                         html.H6(
                                 'Look at ',
                                 style = {'color': corporate_colors['superdark-green'],
                                 'margin-top': '10px'}
                                 ),
-                        dcc.RadioItems(
+                        dcc.RadioItems( 
                             id = 'which_json',
                             options = [
                                 {'label': 'Zip codes', 'value': 'zipcode'},
@@ -419,7 +419,7 @@ page1 = html.Div([
                             'paddingLeft': 5
                         }
                     ),
-                    html.Div([
+                    html.Div([ ## select model
                         html.H6(
                                 'Model selection',
                                 style = {'color': corporate_colors['superdark-green'],
@@ -440,8 +440,7 @@ page1 = html.Div([
                             'paddingLeft': 5
                         }
                     ),    
-                    html.Div([
-                        #Reporting group selection l1
+                    html.Div([ ## Select feature
                         html.H6(
                                 'Select feature',
                                 style = {'color': corporate_colors['superdark-green'],
@@ -603,7 +602,7 @@ page2 = html.Div([
                 ],
                 className = 'col-3'), # Filter part 1
 
-                #Filter pt 2
+                # ilter pt 2
                 html.Div([
 
                     html.Div([
@@ -611,6 +610,7 @@ page2 = html.Div([
                             children='Feature:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
+                        # list of features
                         html.Div(id = 'feat_list', children = [
                             dcc.Dropdown(id = 'crossfilter-feature',
                                 value = 'square_footage',
@@ -618,12 +618,11 @@ page2 = html.Div([
                                 )
                             ],
                             style = {'width' : '70%', 'margin-top' : '5px'}),
-                        #
                         html.H5(
                             children='Region:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
-                        #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
+                        # This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
                         html.Div(id = 'reso_list', children = [
                             dcc.Dropdown(id = 'filter-dropdown',
                             value = 'Georgia',
@@ -640,11 +639,11 @@ page2 = html.Div([
                 ],
                 className = 'col-3'), # Filter part 2
 
-                #Filter pt 3
+                # Filter pt 3
                 html.Div([
 
                     html.Div([
-                        #Color gradient scheme selection L1
+                        # Color gradient scheme selection L1
                         html.H5(
                             children='Color Gradient Scheme:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
@@ -702,7 +701,7 @@ page2 = html.Div([
 
             html.Div([ # Internal row
 
-                # Chart Column
+                ## Scatter plot 
                 html.Div([
                     dcc.Graph(
                         id='scatter-plot',
@@ -713,8 +712,7 @@ page2 = html.Div([
                 ],
                 className = 'col-8'),
 
-                # Chart Column
-
+                ## SHAP values  
                 html.Div([
                     html.Img(
                         id='shap-bee', 
@@ -728,7 +726,7 @@ page2 = html.Div([
 
             html.Div([ # Internal row
 
-                # Chart Column
+                ##  Bar charts
                 html.Div([
                     dcc.Graph(
                         id='point-plot'
@@ -777,13 +775,13 @@ page3 = html.Div([
                 html.Div([], className='col-2'),
                 html.Div([ ## Slider, radio, model
                     html.Div([
-                        html.Div([
+                        html.Div([ ## accuracy slider
                             html.Div(
                                 id = 'model-accuracy-statement',
                                 children = [],
                                 style={'text-align':'center'}
                             ),
-                            dcc.Slider(
+                            dcc.Slider( 
                                 id='acc-cutoff',
                                 min=0,
                                 max=1,
@@ -811,7 +809,7 @@ page3 = html.Div([
                                 'display':'inline-block',
                                 'width' : '40%'
                                 }),
-                        html.Div([
+                        html.Div([ ## Model selection
                             html.Div([html.H6(
                                 'Select model',
                                 style = {'color': corporate_colors['superdark-green']})]),
@@ -832,7 +830,7 @@ page3 = html.Div([
                                 #'display': 'inline-block'
                                 }
                             ),
-                            dcc.Dropdown(
+                            dcc.Dropdown( ## Target seleection
                                 id = 'bar-options',
                                 options = [
                                     {'label': 'Average price', 'value': 'avg_price'},
@@ -884,7 +882,7 @@ page3 = html.Div([
                                 style = {'color': corporate_colors['superdark-green'],
                                 'margin-top': '10px'}
                                 ),
-                            dcc.RadioItems(
+                            dcc.RadioItems( ## granularity selection
                                 id = 'granularity',
                                 options = [
                                     {'label': 'Zip codes', 'value': 'zipcode'},
@@ -924,7 +922,7 @@ page3 = html.Div([
         html.Div([ 
 
             html.Div([ # Internal row
-                # Chart Column
+                # Upper bar chart 
                 html.Div([
                     html.H5('The top regions'),
                     dcc.Graph(id = 'top-bars',
@@ -945,7 +943,7 @@ page3 = html.Div([
 
             html.Div([ # Internal row
 
-                # Chart Column 
+                # Lower bar chart  
                 html.Div([
                     html.H5('Select an address'),
                     dcc.Graph(id = 'lower-bars'
