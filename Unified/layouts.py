@@ -147,35 +147,17 @@ corporate_layout = go.Layout(
     )
 
 ####################################################################################################
-# 000 - DATA MAPPING
+# 000 - Loading
 ####################################################################################################
+
+# Read in external data into dash application
+df = pd.read_csv('data/raw/final.csv')
+df1 = df.copy()
+
+# Read pickle file that can be obtained by running the first half or so of MLR.ipynb
+MS_ser = pd.read_pickle('data/pickle/modNshap.P')
 
 ########################### Page 1 - Maps
-# Load pre computed data
-# ga = f.load_pickle('ga_info.p')
-
-# Deployment inforamtion
-PORT = 8050
-
-# Load necessary information for accessing source files
-mapbox_access_token = f.config['mapbox']['token']
-raw_dataset_path = f.RAW_PATH + f.config['path']['name']
-
-
-####################################################################################################
-# 000 - IMPORT DATA
-####################################################################################################
-
-########################### Page 1 - Maps
-# Import map and bar chart data
-df_raw = pd.read_csv(raw_dataset_path)
-
-# Create DataFrames for map and bar chart
-#df_ga = g.process_ga_data(df_raw)
-
-# Prepare figure
-#fig_ga = g.create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
-
 #Create L1 dropdown options
 repo_groups_l1_all = [
     {'label' : 'Number of Listings', 'value' : 'count'},
@@ -187,76 +169,12 @@ repo_groups_l1_all = [
     {'label': 'Maximum Amount a Listing is Undervalued According to Model', 'value': 'max_differential'},
     {'label' : 'Model Score Over Region', 'value' : 'max_score'},
     ]
-########################### Page 1 - Maps
-
 ########################### Page 2 - Analytics
-# Read in external data into dash application
-df = df_raw
-df1 = df.copy()
-
-# Read pickle file that can be obtained by running the first half or so of MLR.ipynb
-MS_ser = pd.read_pickle('data/pickle/modNshap.P')
-
-################################# Need to integrate below mask into pre-processing and take it out of here
-
-mask = {'F': 0,
-       'D-': 1,
-       'D': 2,
-       'D+': 3,
-       'C-': 4,
-       'C': 5,
-       'C+': 6,
-       'B-': 7,
-       'B': 8,
-       'B+': 9,
-       'A-': 10,
-       'A': 11}
-df['overall_crime_grade'] = df['overall_crime_grade'].apply(lambda row: mask[row])
-df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[row])
-#################################
-
-# Series of zipcode data frames. May want to save elsewhere.
-all_dfs = pd.read_pickle('data/pickle/preloading.P')
-#all_dfs = pd.Series([], dtype='O')
-#for zipcode in set(df.zipcode.values):
-#    all_dfs[zipcode] = df.loc[df.zipcode == zipcode]
-#all_dfs['Georgia'] = df.copy()
-#for county in set(df.county.values):
-#    all_dfs[county] = df.loc[df.county == county]
-
-## Attach model predictions and scores to all_dfs dataframes.
-
-#for zdf in all_dfs:
-#    for model in MS_ser.index:
-#        features = MS_ser[model].loc[30002, 'model'].feature_names_in_
-#        zdf[model+'_price'] = MS_ser[model].loc[30002, 'model'].predict(zdf[features])
-#        zdf[model+'_caprate'] = 100*12*(zdf['rent'])/(zdf[model+'_price'])-1
-#        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
-#        zdf[model+'_differential'] = zdf[model+'_price']-zdf['price']
-
-# Define features to be utilized for generating scatter plots
-
-house_features = ['square_footage', 'beds', 'lot_size', 'baths_full', 'baths_half'] 
-regional_features = ['overall_crime_grade', 'property_crime_grade', 'ES_rating', 'MS_rating', 'HS_rating']
-features = house_features+regional_features
-
-# Features to be omitted from 'features':
-# omitted_features = ['listing_special_features', 'listing_status', 'transaction_type']
-
-# Define sales prices based on models to be utilized for generating scatter plots
-models = ['price']
-
-# Calculate averages of selected features
-df_average = df[features].mean()
-
-# Calculate maximum value of entire dataframe to set limit of point plot
-max_val = df.max()
-
 # Model group L1 options
 crossfilter_model_options = [
-    {'label': 'Multiple Linear Regression: all features', 'value': 'MLR_full'},
-    {'label': 'Multiple Linear Regression: house features', 'value': 'MLR_house'},
-    {'label': 'Multiple Linear Regression: regional features', 'value': 'MLR_regional'}
+    {'label': 'Multiple Linear Regression: All features', 'value': 'MLR_full'},
+    {'label': 'Multiple Linear Regression: House features', 'value': 'MLR_house'},
+    {'label': 'Multiple Linear Regression: Regional features', 'value': 'MLR_regional'}
     ]
 
 # Resolution group L2 options
@@ -477,10 +395,6 @@ page1 = html.Div([
                 html.Div([
 
                     html.Div([
-                        html.H5(
-                            children='Filters by Reporting Groups:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
                         html.H6(
                                 'Look at ',
                                 style = {'color': corporate_colors['superdark-green'],
@@ -497,6 +411,20 @@ page1 = html.Div([
                                 'font-size': '11px'
                             }
                         ),
+                        ],
+                        style = {
+                            'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5
+                        }
+                    ),
+                    html.Div([
+                        html.H6(
+                                'Model selection',
+                                style = {'color': corporate_colors['superdark-green'],
+                                'margin-top': '10px'}
+                                ),
                         dcc.Dropdown(
                             id = 'map-model',
                             options = crossfilter_model_options,
@@ -504,8 +432,21 @@ page1 = html.Div([
                             multi = False,
                             style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                         ),
+                        ],
+                        style = {
+                            'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5
+                        }
+                    ),    
+                    html.Div([
                         #Reporting group selection l1
-
+                        html.H6(
+                                'Select feature',
+                                style = {'color': corporate_colors['superdark-green'],
+                                'margin-top': '10px'}
+                                ),
                         html.Div([
                             dcc.Dropdown(id = 'reporting-groups-l1dropdown-sales',
                                 options = repo_groups_l1_all,
@@ -519,13 +460,14 @@ page1 = html.Div([
                                 )
                             ],
                             style = {'width' : '70%', 'margin-top' : '5px'}),
-    
-                    ],
-                    style = {'margin-top' : '10px',
+                        ],
+                        style = {
+                            'margin-top' : '10px',
                             'margin-bottom' : '5px',
                             'text-align' : 'left',
-                            'paddingLeft': 5})
-
+                            'paddingLeft': 5
+                        }
+                    ),    
                 ],
                 className = 'col-4'), # Filter part 2
 
@@ -624,22 +566,16 @@ page2 = html.Div([
                         html.Div([
                             dcc.Dropdown(id = 'crossfilter-model',
                                 options = crossfilter_model_options,
-                                # Default value when loading
                                 value = 'MLR_full',
-                                # Permit user to select only one option at a time
                                 multi = False,
-                                # Default message in dropdown before user select options
-                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
                                 style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 ),
                             dcc.Dropdown(id = 'select-target',
                                 options = [{'label': 'Price', 'value':'price'},
                                     {'label': 'Cap rate', 'value':'caprate'}
                                     ],
-                                #value = 'price',
+                                value = 'price',
                                 multi = False,
-                                # Default message in dropdown before user select options
-                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
                                 style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 ),
                             ],
@@ -652,12 +588,8 @@ page2 = html.Div([
                         html.Div([
                             dcc.Dropdown(id = 'crossfilter-resolution',
                                 options = crossfilter_resolution_options,
-                                # Default value when loading
-                                #value = 'state',
-                                # Permit user to select only one option at a time
+                                value = 'state',
                                 multi = False,
-                                # Default message in dropdown before user select options
-                                # placeholder = "Select " +sales_fields['reporting_group_l1']+ " (leave blank to include all)",
                                 style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 )
                             ],
@@ -681,7 +613,7 @@ page2 = html.Div([
                         ),
                         html.Div(id = 'feat_list', children = [
                             dcc.Dropdown(id = 'crossfilter-feature',
-                                #value = 'price',
+                                value = 'square_footage',
                                 style = {'font-size': '1d3px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 )
                             ],
@@ -693,7 +625,8 @@ page2 = html.Div([
                         ),
                         #This list is designed to be dynamically populated by callbacks from 'crossfilter-resolution'
                         html.Div(id = 'reso_list', children = [
-                            dcc.Dropdown(id = 'filter-dropdown', #value = 'Georgia',
+                            dcc.Dropdown(id = 'filter-dropdown',
+                            value = 'Georgia',
                                 style = {'font-size': '13px', 'color' : corporate_colors['medium-blue-grey'], 'white-space': 'nowrap', 'text-overflow': 'ellipsis'}
                                 )
                             ], 

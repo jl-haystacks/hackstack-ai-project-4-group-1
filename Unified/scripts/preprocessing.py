@@ -139,4 +139,4 @@ reordered_cols = reorder_columns(my_list, first_cols=location_data)
 df = df[reordered_cols]
 df.reset_index().drop(columns='index')
 
-df.to_csv('../data/raw/final.csv', index=False)
+df.to_csv('../data/raw/final.csv')

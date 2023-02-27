@@ -157,36 +157,6 @@ corporate_layout = go.Layout(
     margin = corporate_margins
     )
 
-####################################################################################################
-# 000 - DATA MAPPING
-####################################################################################################
-
-########################### Page 1 - Maps
-# Load pre computed data
-# ga = f.load_pickle('ga_info.p')
-
-# Deployment inforamtion
-PORT = 8050
-
-# Load necessary information for accessing source files
-mapbox_access_token = f.config['mapbox']['token']
-raw_dataset_path = f.RAW_PATH + f.config['path']['name']
-
-
-####################################################################################################
-# 000 - IMPORT DATA
-####################################################################################################
-
-########################### Page 1 - Maps
-# Import map and bar chart data
-df_raw = pd.read_csv(raw_dataset_path)
-
-# Create DataFrames for map and bar chart
-#df_ga = g.process_ga_data(df_raw)
-
-# Prepare figure
-#fig_ga = g.create_ga_fig(df_ga, mapbox_access_token=mapbox_access_token)
-
 #Create L1 dropdown options
 
 repo_groups_l1_all = [
@@ -203,48 +173,14 @@ repo_groups_l1_all = [
 
 ########################### Page 2 - Analytics
 # Read in external data into dash application
-df = df_raw
+df = pd.read_csv('data/raw/final.csv')
 df1 = df.copy()
 
 # Read pickle file that can be obtained by running the first half or so of MLR.ipynb
 MS_ser = pd.read_pickle('data/pickle/modNshap.P')
 
-################################# Need to integrate below mask into pre-processing and take it out of here
-
-mask = {'F': 0,
-       'D-': 1,
-       'D': 2,
-       'D+': 3,
-       'C-': 4,
-       'C': 5,
-       'C+': 6,
-       'B-': 7,
-       'B': 8,
-       'B+': 9,
-       'A-': 10,
-       'A': 11}
-df['overall_crime_grade'] = df['overall_crime_grade'].apply(lambda row: mask[row])
-df['property_crime_grade'] = df['property_crime_grade'].apply(lambda row: mask[row])
 #################################
 all_dfs = pd.read_pickle('data/pickle/preloading.P')
-# Series of zipcode data frames. May want to save elsewhere.
-
-#all_dfs = pd.Series([], dtype='O')
-#for zipcode in set(df.zipcode.values):
-#    all_dfs[zipcode] = df.loc[df.zipcode == zipcode]
-#all_dfs['Georgia'] = df.copy()
-#for county in set(df.county.values):
-#    all_dfs[county] = df.loc[df.county == county]
-
-## Attach model predictions and scores to all_dfs dataframes.
-
-#for zdf in all_dfs:
-#    for model in MS_ser.index:
-#        features = MS_ser[model].loc[30002, 'model'].feature_names_in_
-#        zdf[model+'_price'] = MS_ser[model].loc[30002, 'model'].predict(zdf[features])
-#        zdf[model+'_caprate'] = 100*12*(zdf['rent'])/(zdf[model+'_price'])-1
-#        zdf[model+'_score'] = MS_ser[model].loc[30002, 'model'].score(zdf[features], zdf['price'])
-#        zdf[model+'_differential'] = zdf[model+'_price']-zdf['price']
 
 # https://maps.princeton.edu/catalog/tufts-gacounties10
 with open('data/geojson/tufts-gacounties10-geojson.json') as json_data:
@@ -259,13 +195,6 @@ with open('data/geojson/harvard-tg00gazcta-geojson.json') as json_data:
 house_features = ['square_footage', 'beds', 'lot_size', 'baths_full', 'baths_half'] 
 regional_features = ['overall_crime_grade', 'property_crime_grade', 'ES_rating', 'MS_rating', 'HS_rating']
 features = house_features+regional_features
-
-
-# features = ['square_footage', 'overall_crime_grade', 'ES_rating', 'lot_size', 'baths_half', 
-# 'MS_rating', 'HS_rating', 'beds', 'baths_full', 'year_built', 'property_crime_grade']
-
-# Features to be omitted from 'features':
-# omitted_features = ['listing_special_features', 'listing_status', 'transaction_type']
 
 # Define sales prices based on models to be utilized for generating scatter plots
 models = ['price']
@@ -292,7 +221,7 @@ crossfilter_resolution_options = [
     {'label': 'Zip code', 'value': 'zipcode'},
     ]
 
-### Holds model-specific statistics, should probably pre-load
+### Holds model-specific statistics, 
 
 model_stats = pd.Series([], dtype='O')
 for model in MS_ser.index:
@@ -400,9 +329,6 @@ corporate_colorscale = [
 ####################################################################################################
 ####################################################################################################
 
-####################################################################################################
-# 00A - BAR CHART AND CHOROPLETH MAP UPDATE
-####################################################################################################
 repo_groups_l1_all = [
     {'count': 'Number of Listings'},
     {'avg_listing_price': 'Average Listing Price'},
@@ -414,7 +340,10 @@ repo_groups_l1_all = [
     {'max_score': 'Model score (R-squred)'},
     ]
 
+
+####################################################################################################
 ################### Callback for producing a map
+####################################################################################################
 
 @app.callback(
    dash.dependencies.Output('ga-map', 'figure'),
@@ -424,7 +353,6 @@ repo_groups_l1_all = [
        dash.dependencies.Input('map-model', 'value')
    ]
 )
-################### Changes map on Map page
 
 def update_map(coloring, reso, model):
     if reso == 'zipcode':
@@ -491,14 +419,16 @@ def update_map(coloring, reso, model):
 # 00B - SCATTER PLOT UPDATE
 ####################################################################################################
 
+
+
+####################################################################################################
 ################### Callback for updating features according to model
+####################################################################################################
 
 @app.callback(
     dash.dependencies.Output('feat_list', 'children'),
     dash.dependencies.Input('crossfilter-model', 'value')
 )
-
-################### Function updates features dropdown according to model
 
 def update_feature_list(which_model):
     X = dcc.Dropdown(id = 'crossfilter-feature',
@@ -511,13 +441,15 @@ def update_feature_list(which_model):
     )
     return X
 
+####################################################################################################
 ################### Callback for dynamic dropdown of zipcodes/counties
+####################################################################################################
 
 @app.callback(
     dash.dependencies.Output('reso_list', 'children'),
     dash.dependencies.Input('crossfilter-resolution', 'value')
 )
-################### Create dynamic dropdown. Effects change in scatter-plot as well.
+
 
 def update_scale(resolution_dropdown):
     new_dropdown = dcc.Dropdown(
@@ -527,36 +459,9 @@ def update_scale(resolution_dropdown):
     )
     return new_dropdown
 
-################### First callback for SHAP values
-
-@app.callback(
-    dash.dependencies.Output('shap-bee', 'src'),
-    [
-        dash.dependencies.Input('filter-dropdown','value'),
-        #dash.dependencies.State('crossfilter-resolution', 'value') ## Useful if we add county as well\
-
-        dash.dependencies.Input('crossfilter-model', 'value'),    ## need to figure out a good way to do this. Will probably use a Series of those model dataframes
-    ]
-)
-################### Function to update SHAP values
-
-def update_shap(focus, which_model):
-    plt.style.use("dark_background")
-    shap.summary_plot( 
-        MS_ser[which_model].loc[focus,'shap_values'], 
-        show=False)
-    fig = plt.gcf()
-    plt.tick_params(colors = 'white')
-    plt.ticklabel_format(axis='x', scilimits=[-3, 3])
-    buf = io.BytesIO() # in-memory files
-    plt.savefig(buf, format = "png", transparent = True)
-    plt.close()
-    data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
-    buf.close()
-    X = "data:image/png;base64,{}".format(data)
-    return X
-
-################### First callback to coordinate scatterplot with feature, model, and color gradient schema
+####################################################################################################
+################### Callback to coordinate scatterplot with feature, model, and color gradient schema
+####################################################################################################
 
 @app.callback(
     dash.dependencies.Output('scatter-plot', 'figure'),
@@ -570,10 +475,10 @@ def update_shap(focus, which_model):
     ]
 )
 
-################### Function to update graph in response to feature, model, and color gradient schema being updated
-
 def update_graph(feature, model, gradient, resolution, focus, target):
-    # Define points and respective colors of scatter plot
+    # Define features
+    features = list(MS_ser[model].loc['Georgia','model'].feature_names_in_)
+    # Define points and respective colors of scatter plot 
     cols = all_dfs[focus][feature].values #df[feature].values
     hover_names = []
     for ix, val in zip(all_dfs[focus].index.values, all_dfs[focus][feature].values):
@@ -590,6 +495,7 @@ def update_graph(feature, model, gradient, resolution, focus, target):
         template='plotly_dark',
         color_continuous_scale=gradient,
         labels = {
+            'ix': 'Listing number',
             'HS_rating': 'High school rating',
             'MS_rating': 'Middle school rating',
             'ES_rating': 'Elementary school rating',
@@ -598,7 +504,7 @@ def update_graph(feature, model, gradient, resolution, focus, target):
             'baths_half': 'Half bathrooms',
             'baths_full': 'Full bathrooms',
             'lot_size': 'Lot size',
-            'square_footage': 'Square footage'
+            'square_footage': 'Square footage',
         }
     )
     if target == 'price':
@@ -624,7 +530,10 @@ def update_graph(feature, model, gradient, resolution, focus, target):
 
     return fig
 
-################### Function to create point plot of averages of selected features
+####################################################################################################
+################### Function to create point plot of averages of features
+####################################################################################################
+
 
 def create_point_plot(df, title):
 
@@ -649,7 +558,9 @@ def create_point_plot(df, title):
 
     return fig
 
-################### Callback to update point plot based on user hovering over points in scatter plot
+####################################################################################################
+################### Callback to update point plot based on user clicking points in scatter plot
+####################################################################################################
 
 @app.callback(
     dash.dependencies.Output('point-plot', 'figure'),
@@ -659,25 +570,67 @@ def create_point_plot(df, title):
     ]
 )
 
-################### Function to trigger last function in response to user click point in scatter plot
-
 def update_point_plot(clickData):
-    index = clickData['points'][0]['customdata']
+    if clickData == {'points':[{'customdata': 0}]}:
+        return create_point_plot(df[features].iloc[0], f'Listing 0')
+    index = clickData['points'][0]['pointNumber']
     title = f'Customer {index}'
     return create_point_plot(df[features].iloc[index], title)
 
-################### Callback for accuracy value text
 
+####################################################################################################
+################### Callback for SHAP values
+####################################################################################################
+
+@app.callback(
+    dash.dependencies.Output('shap-bee', 'src'),
+    [
+        dash.dependencies.Input('filter-dropdown','value'),
+        #dash.dependencies.State('crossfilter-resolution', 'value') ## Useful if we add county as well\
+
+        dash.dependencies.Input('crossfilter-model', 'value'),    ## need to figure out a good way to do this. Will probably use a Series of those model dataframes
+    ]
+)
+
+def update_shap(focus, which_model):
+    plt.style.use("dark_background")
+    shap.summary_plot( 
+        MS_ser[which_model].loc[focus,'shap_values'], 
+        show=False)
+    fig = plt.gcf()
+    plt.tick_params(colors = 'white')
+    plt.ticklabel_format(axis='x', scilimits=[-3, 3])
+    buf = io.BytesIO() # in-memory files
+    plt.savefig(buf, format = "png", transparent = True)
+    plt.close()
+    data = base64.b64encode(buf.getbuffer()).decode("utf8") # encode to html elements
+    buf.close()
+    X = "data:image/png;base64,{}".format(data)
+    return X
+
+
+
+
+####################################################################################################
+# PAGE 3 #########################################
+####################################################################################################
+
+
+
+####################################################################################################
+################### Callback for accuracy value text
+####################################################################################################
 @app.callback(
     dash.dependencies.Output('model-accuracy-statement', 'children'),
     dash.dependencies.Input('acc-cutoff', 'value')
 )
 
-################### Changes accuracy value text
-
 def display_accuracy(value):
     return html.H6(f'Minimum model R-squared: {value}', style = {'color': corporate_colors['superdark-green']})
 
+###############################################################################################
+################### Updates  the top bar charts in Interpret page according to filters
+###############################################################################################
 @app.callback(
     dash.dependencies.Output('top-bars', 'figure'),
     [
@@ -688,14 +641,13 @@ def display_accuracy(value):
     ]
 )
 
-################### Updates  the top bar charts in Interpret page
-
 def update_top_bars(cutoff, model, reso, selection):
     if reso == 'zipcode':
         allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & (reg_idx[model])].sort_values(by='max_score', ascending = False)
     else:
         allowed_regions = model_stats[model][(model_stats[model]['max_score'] >= cutoff) & ~((reg_idx[model]) | (model_stats[model].index == 'Georgia'))].sort_values(by='max_score', ascending = False)
-    top5 = allowed_regions.sort_values(by=selection, ascending = False).iloc[0:5].reset_index() 
+    top5 = allowed_regions.sort_values(by=selection, ascending = False).iloc[0:5].reset_index()
+    top5[['index2']] = top5[['index']].astype(str)
     if reso == 'zipcode':
         where = 'Zip code'
     else: where = 'County'
@@ -703,10 +655,12 @@ def update_top_bars(cutoff, model, reso, selection):
         top5,
         x='index',
         y=selection,
+        color = 'index2',
         hover_data = ['count', 'avg_score'],
         opacity=0.8,
         labels={
             'index': where,
+            'index2': where,
             'count': 'Number of listings',
             'avg_listing_price': 'Average listing price',
             'max_listing_price': 'Maximum listing price' ,
@@ -734,7 +688,9 @@ def update_top_bars(cutoff, model, reso, selection):
 
     return fig
 
+####################################################################################################
 ################### Callback for creating bar chart on bottom of Interpret page
+####################################################################################################
 
 @app.callback(
     dash.dependencies.Output('lower-bars', 'figure'),
@@ -746,7 +702,6 @@ def update_top_bars(cutoff, model, reso, selection):
         dash.dependencies.Input('top-bars', 'clickData')
     ]
 )
-################### Creates lower bars from either click data or selected values
 
 def lower_bars(cutoff, model, reso, selection, click): 
     if callback_context.triggered[0]['prop_id'] == 'top-bars.clickData':
@@ -759,6 +714,7 @@ def lower_bars(cutoff, model, reso, selection, click):
             top10,
             x= 'address',
             y = model+'_'+selection[4:],
+            color = 'city',
             opacity = 0.8,
             hover_data = ['city', reso, 'index'],
             labels = {
@@ -803,7 +759,8 @@ def lower_bars(cutoff, model, reso, selection, click):
     fig = px.bar(
         top10,
         x='address', 
-        y=model+'_'+selection[4:], #omit avg_ or max_
+        y=model+'_'+selection[4:], #omit avg_ or max_,
+        color = 'city',
         opacity=0.8,
         hover_data = ['city', reso, 'index'],
         labels = {
@@ -839,7 +796,9 @@ def lower_bars(cutoff, model, reso, selection, click):
     return fig
 
 
+####################################################################################################
 ################### Generates SHAP graph
+####################################################################################################
 
 def generate_interpretation(model, lbcd):
     idx = int(lbcd['points'][0]['customdata'][2])
@@ -866,7 +825,7 @@ def generate_interpretation(model, lbcd):
             'MLR_housing_caprate': 'Cap rate',
             },
         color = row > 0,
-        color_discrete_map={True: "red", False: "blue"},
+        color_discrete_map = {False: '#636EFA', True: '#EF553B'},
     )
     fig.update_layout(
         margin={'l': 5, 'b': 5, 'r': 5, 't': 5},
@@ -883,7 +842,9 @@ def generate_interpretation(model, lbcd):
     #idx = int(lbcd['points'][0]['customdata'][2])
     #pass
 
+####################################################################################################
 ################### Callback for waterfall plot
+####################################################################################################
 
 @app.callback(
     dash.dependencies.Output('limeshap', 'children'),
@@ -893,8 +854,6 @@ def generate_interpretation(model, lbcd):
         #dash.dependencies.State('interpretation-type', 'value'),
     ]
 )
-
-################### Updates SHAP waterfall based on clickdata 
     
 def update_interpretation(which_model, lbcd):
     fig = generate_interpretation(which_model, lbcd)
